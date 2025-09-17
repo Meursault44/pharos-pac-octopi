@@ -16,7 +16,7 @@ const keyMap: Record<string, 'up' | 'down' | 'left' | 'right' | 'space' | undefi
 
 const SPEED = 2;
 const SPRITE_SIZE = TILE_SIZE;
-const HITBOX = 16;
+const HITBOX = 22;
 const HITBOX_PAD = (SPRITE_SIZE - HITBOX) / 2;
 
 export const Pacman = () => {

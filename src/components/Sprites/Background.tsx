@@ -4,9 +4,6 @@ import {
     Texture,
 } from 'pixi.js';
 import bg from '../../assets/pond_background.jpg'
-import {
-    useApplication,
-} from '@pixi/react';
 
 export const Background = () => {
     const [texture, setTexture] = useState(Texture.EMPTY)

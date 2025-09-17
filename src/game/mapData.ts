@@ -1,7 +1,7 @@
 // src/game/mapData.ts
 export const MAP_COLS = 28;
 export const MAP_ROWS = 31;
-export const TILE_SIZE = 26;
+export const TILE_SIZE = 30;
 
 export const RAW_LAYOUT: string[] = [
     '############################',
