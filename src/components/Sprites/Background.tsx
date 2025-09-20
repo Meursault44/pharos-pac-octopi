@@ -3,7 +3,7 @@ import {
     Assets,
     Texture,
 } from 'pixi.js';
-import bg from '../../assets/pond_background.jpg'
+import bg from '../../assets/pond_background.png'
 
 export const Background = () => {
     const [texture, setTexture] = useState(Texture.EMPTY)

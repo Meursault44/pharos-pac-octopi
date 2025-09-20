@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { Assets, Texture } from 'pixi.js';
 import { useTick } from '@pixi/react';
 import bg from '../../assets/pacmanRight.png';
-import { isWallAt, TILE_SIZE, MAP_COLS, MAP_ROWS } from '../../game/mapData';
+import { isWallAt, TILE_SIZE, MAP_COLS, MAP_ROWS, cellKey } from '../../game/mapData';
 import { useGameStore } from '../../game/gameStore';
 
 const keyMap: Record<string, 'up' | 'down' | 'left' | 'right' | 'space' | undefined> = {
@@ -16,7 +16,7 @@ const keyMap: Record<string, 'up' | 'down' | 'left' | 'right' | 'space' | undefi
 
 const SPEED = 2;
 const SPRITE_SIZE = TILE_SIZE;
-const HITBOX = 22;
+const HITBOX = 30;
 const HITBOX_PAD = (SPRITE_SIZE - HITBOX) / 2;
 
 export const Pacman = () => {
@@ -25,12 +25,18 @@ export const Pacman = () => {
     const [position, setPosition] = useState({ x: TILE_SIZE * 8, y: TILE_SIZE * 13 });
 
     const consume = useGameStore((s) => s.consume);
+    const sharks = useGameStore((s) => s.sharks);
+    const gameOver = useGameStore((s) => s.gameOver);
+    const endGame = useGameStore((s) => s.endGame);
+
+    // ⬇️ добавим локальный флаг, который безопасно дернёт endGame в useEffect
+    const [shouldEndGame, setShouldEndGame] = useState(false);
 
     const keyDownHandler = useCallback((e: KeyboardEvent) => {
         const dir = keyMap[e.code];
-        if (!dir || dir === 'space') return;
+        if (!dir || dir === 'space' || gameOver) return;
         setIsMoving(dir);
-    }, []);
+    }, [gameOver]);
 
     const keyUpHandler = useCallback((e: KeyboardEvent) => {
         const dir = keyMap[e.code];
@@ -38,13 +44,13 @@ export const Pacman = () => {
         setIsMoving((prev) => (prev === dir ? null : prev));
     }, []);
 
-    const canPlace = useCallback((nx: number, ny: number) => {
-        const hbX = nx + HITBOX_PAD;
-        const hbY = ny + HITBOX_PAD;
+    const checkSharkCollision = useCallback((x: number, y: number) => {
+        if (gameOver) return false;
+
+        const hbX = x + HITBOX_PAD;
+        const hbY = y + HITBOX_PAD;
         const hbRight = hbX + HITBOX;
         const hbBottom = hbY + HITBOX;
-
-        if (hbX < 0 || hbY < 0 || hbRight > MAP_COLS * TILE_SIZE || hbBottom > MAP_ROWS * TILE_SIZE) return false;
 
         const c0 = Math.floor(hbX / TILE_SIZE);
         const r0 = Math.floor(hbY / TILE_SIZE);
@@ -53,23 +59,14 @@ export const Pacman = () => {
 
         for (let r = r0; r <= r1; r++) {
             for (let c = c0; c <= c1; c++) {
-                if (isWallAt(c, r)) return false;
+                if (sharks.has(cellKey(c, r))) return true;
             }
         }
-        return true;
-    }, []);
-
-    // пробуем съесть пеллет в клетке под центром
-    const tryEatUnderCenter = (x: number, y: number) => {
-        const centerX = x + SPRITE_SIZE / 2;
-        const centerY = y + SPRITE_SIZE / 2;
-        const col = Math.floor(centerX / TILE_SIZE);
-        const row = Math.floor(centerY / TILE_SIZE);
-        consume(col, row); // сам стор залогирует score
-    };
+        return false;
+    }, [sharks, gameOver]);
 
     const animate = useCallback(() => {
-        if (!isMoving) return;
+        if (gameOver || !isMoving) return;
 
         setPosition((prev) => {
             let nx = prev.x, ny = prev.y;
@@ -78,15 +75,12 @@ export const Pacman = () => {
             else if (isMoving === 'left') nx -= SPEED;
             else if (isMoving === 'right') nx += SPEED;
 
-            // проверка коллизии со стенами
+            // границы и стены
             const hbX = nx + HITBOX_PAD;
             const hbY = ny + HITBOX_PAD;
             const hbRight = hbX + HITBOX;
             const hbBottom = hbY + HITBOX;
-            if (
-                hbX < 0 || hbY < 0 ||
-                hbRight > MAP_COLS * TILE_SIZE || hbBottom > MAP_ROWS * TILE_SIZE
-            ) return prev;
+            if (hbX < 0 || hbY < 0 || hbRight > MAP_COLS * TILE_SIZE || hbBottom > MAP_ROWS * TILE_SIZE) return prev;
 
             const c0 = Math.floor(hbX / TILE_SIZE);
             const r0 = Math.floor(hbY / TILE_SIZE);
@@ -97,13 +91,23 @@ export const Pacman = () => {
                     if (isWallAt(c, r)) return prev;
                 }
             }
+
+            // ⛔️ ВАЖНО: НЕ вызываем endGame() здесь.
+            // Просто отмечаем факт столкновения и остаёмся на прежней позиции.
+            if (checkSharkCollision(nx, ny)) {
+                setShouldEndGame(true);
+                return prev;
+            }
+
             return { x: nx, y: ny };
         });
-    }, [isMoving]);
+    }, [isMoving, gameOver, checkSharkCollision]);
     useTick(animate);
 
     const lastCellRef = useRef<string>('');
     useEffect(() => {
+        if (gameOver) return;
+
         const centerX = position.x + SPRITE_SIZE / 2;
         const centerY = position.y + SPRITE_SIZE / 2;
         const col = Math.floor(centerX / TILE_SIZE);
@@ -111,9 +115,22 @@ export const Pacman = () => {
         const k = `${col},${row}`;
         if (k !== lastCellRef.current) {
             lastCellRef.current = k;
-            consume(col, row); // тут обновится стор, Map перерисуется — это уже ОК
+            consume(col, row);
         }
-    }, [position.x, position.y, consume]);
+
+        // Доп.проверка на текущей позиции (без немедленного endGame)
+        if (checkSharkCollision(position.x, position.y)) {
+            setShouldEndGame(true);
+        }
+    }, [position.x, position.y, consume, gameOver, checkSharkCollision]);
+
+    // единая точка завершения игры — безопасна для React
+    useEffect(() => {
+        if (!shouldEndGame) return;
+        endGame();
+        console.log('GAME OVER: shark collision');
+        setShouldEndGame(false);
+    }, [shouldEndGame, endGame]);
 
     useEffect(() => {
         if (texture === Texture.EMPTY) Assets.load(bg).then(setTexture);
