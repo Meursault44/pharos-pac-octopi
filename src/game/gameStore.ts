@@ -1,54 +1,151 @@
 import { create } from 'zustand';
-import { RAW_LAYOUT, MAP_COLS, MAP_ROWS, cellKey } from './mapData';
+import { RAW_LAYOUT, MAP_COLS, MAP_ROWS, TILE_SIZE, cellKey, isWallAt } from './mapData';
 
 type Eaten = 'pellet' | null;
+type Dir = 'up' | 'down' | 'left' | 'right';
+export type Shark = { id: number; x: number; y: number; dir: Dir };
 
-type GameState = {
-    pellets: Set<string>;   // '.'
-    sharks: Set<string>;    // 'o'
+const SHARK_SPEED = 1.5; // пикс/тик
+
+function opposite(d: Dir): Dir {
+    if (d === 'up') return 'down';
+    if (d === 'down') return 'up';
+    if (d === 'left') return 'right';
+    return 'left';
+}
+
+function canPlaceRect(nx: number, ny: number) {
+    // хитбокс по размеру тайла
+    const right = nx + TILE_SIZE;
+    const bottom = ny + TILE_SIZE;
+    if (nx < 0 || ny < 0 || right > MAP_COLS * TILE_SIZE || bottom > MAP_ROWS * TILE_SIZE) return false;
+
+    const c0 = Math.floor(nx / TILE_SIZE);
+    const r0 = Math.floor(ny / TILE_SIZE);
+    const c1 = Math.floor((right - 1) / TILE_SIZE);
+    const r1 = Math.floor((bottom - 1) / TILE_SIZE);
+
+    for (let r = r0; r <= r1; r++) {
+        for (let c = c0; c <= c1; c++) {
+            if (isWallAt(c, r)) return false;
+        }
+    }
+    return true;
+}
+
+export type GameState = {
+    pellets: Set<string>;
+    sharks: Shark[];
     score: number;
     gameOver: boolean;
 
     initFromLayout: () => void;
-    consume: (c: number, r: number) => Eaten; // поедаем только обычные пеллеты
+    consume: (c: number, r: number) => Eaten;
+    moveSharks: () => void;
     endGame: () => void;
     reset: () => void;
 };
 
 export const useGameStore = create<GameState>((set, get) => ({
     pellets: new Set(),
-    sharks: new Set(),
+    sharks: [],
     score: 0,
     gameOver: false,
 
     initFromLayout: () => {
         const pellets = new Set<string>();
-        const sharks = new Set<string>();
+        const sharks: Shark[] = [];
+        let id = 1;
+
         for (let r = 0; r < MAP_ROWS; r++) {
             const line = RAW_LAYOUT[r];
             for (let c = 0; c < MAP_COLS; c++) {
                 const ch = line[c];
                 if (ch === '.') pellets.add(cellKey(c, r));
-                else if (ch === 'o') sharks.add(cellKey(c, r));
+                else if (ch === 'o') {
+                    sharks.push({
+                        id: id++,
+                        x: c * TILE_SIZE,
+                        y: r * TILE_SIZE,
+                        dir: 'left',
+                    });
+                }
             }
         }
+
         set({ pellets, sharks, score: 0, gameOver: false });
     },
 
-    // Едим только обычные точки
     consume: (c, r) => {
         const k = cellKey(c, r);
         const { pellets } = get();
         if (pellets.has(k)) {
             pellets.delete(k);
-            set((s) => {
-                const next = s.score + 10;
-                console.log('score:', next);
-                return { pellets: new Set(pellets), score: next };
-            });
+            set((s) => ({ pellets: new Set(pellets), score: s.score + 10 }));
             return 'pellet';
         }
         return null;
+    },
+
+    moveSharks: () => {
+        const { sharks, gameOver } = get();
+        if (gameOver || sharks.length === 0) return;
+
+        const next = sharks.map((s) => {
+            let { x, y, dir } = s;
+
+            // если мы в центре тайла — можно переобрать направление
+            const inCenter =
+                (x % TILE_SIZE === 0) && (y % TILE_SIZE === 0);
+
+            if (inCenter) {
+                const cx = Math.floor(x / TILE_SIZE);
+                const cy = Math.floor(y / TILE_SIZE);
+
+                const options: { dir: Dir; nx: number; ny: number }[] = [];
+                const tryDir = (d: Dir, dx: number, dy: number) => {
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    if (canPlaceRect(nx, ny)) options.push({ dir: d, nx, ny });
+                };
+
+                // проверим все 4, но исключим разворот, если есть альтернативы
+                tryDir('up', 0, -SHARK_SPEED);
+                tryDir('down', 0, SHARK_SPEED);
+                tryDir('left', -SHARK_SPEED, 0);
+                tryDir('right', SHARK_SPEED, 0);
+
+                const filtered = options.filter((o) => o.dir !== opposite(dir));
+                const pickFrom = filtered.length ? filtered : options;
+
+                if (pickFrom.length) {
+                    // если текущий курс валиден — с 70% вероятностью держимся его, иначе выбираем случайный
+                    const keepCurrent = pickFrom.some((o) => o.dir === dir) && Math.random() < 0.7;
+                    if (!keepCurrent) {
+                        const choice = pickFrom[Math.floor(Math.random() * pickFrom.length)];
+                        dir = choice.dir;
+                    }
+                }
+            }
+
+            // шаг по текущему направлению (или прежнему, если не сменили)
+            let nx = x, ny = y;
+            if (dir === 'up') ny -= SHARK_SPEED;
+            else if (dir === 'down') ny += SHARK_SPEED;
+            else if (dir === 'left') nx -= SHARK_SPEED;
+            else nx += SHARK_SPEED;
+
+            if (!canPlaceRect(nx, ny)) {
+                // столкнулись со стеной — развернёмся
+                dir = opposite(dir);
+            } else {
+                x = nx; y = ny;
+            }
+
+            return { ...s, x, y, dir };
+        });
+
+        set({ sharks: next });
     },
 
     endGame: () => set({ gameOver: true }),

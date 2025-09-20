@@ -45,25 +45,26 @@ export const Pacman = () => {
     }, []);
 
     const checkSharkCollision = useCallback((x: number, y: number) => {
-        if (gameOver) return false;
-
+        // хитбокс пакмана
         const hbX = x + HITBOX_PAD;
         const hbY = y + HITBOX_PAD;
-        const hbRight = hbX + HITBOX;
-        const hbBottom = hbY + HITBOX;
+        const hbR = hbX + HITBOX;
+        const hbB = hbY + HITBOX;
 
-        const c0 = Math.floor(hbX / TILE_SIZE);
-        const r0 = Math.floor(hbY / TILE_SIZE);
-        const c1 = Math.floor((hbRight - 1) / TILE_SIZE);
-        const r1 = Math.floor((hbBottom - 1) / TILE_SIZE);
+        for (const sh of sharks) {
+            const sx = sh.x;
+            const sy = sh.y;
+            const sr = sx + TILE_SIZE;
+            const sb = sy + TILE_SIZE;
 
-        for (let r = r0; r <= r1; r++) {
-            for (let c = c0; c <= c1; c++) {
-                if (sharks.has(cellKey(c, r))) return true;
-            }
+            const overlap =
+                hbX < sr && hbR > sx &&
+                hbY < sb && hbB > sy;
+
+            if (overlap) return true;
         }
         return false;
-    }, [sharks, gameOver]);
+    }, [sharks]);
 
     const animate = useCallback(() => {
         if (gameOver || !isMoving) return;

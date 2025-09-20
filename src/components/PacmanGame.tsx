@@ -6,6 +6,7 @@ import { WaterOverlay } from './Sprites/WaterOverlay.tsx';
 import { Map } from './Sprites/Map.tsx';
 import { Pacman } from './Sprites/Pacman.tsx';
 import { DisplacedContainer } from './DisplacedContainer.tsx';
+import { SharkAI } from "./SharkAI.tsx";
 import { TILE_SIZE, MAP_COLS, MAP_ROWS } from '../game/mapData.ts'
 
 extend({ Container, Graphics, Sprite, TilingSprite, DisplacementFilter });
@@ -17,6 +18,7 @@ export const PacmanGame = () => {
                 <Background />
                 <Map />
                 <Pacman />
+                <SharkAI />
                 <WaterOverlay />
             </DisplacedContainer>
         </Application>

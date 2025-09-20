@@ -66,16 +66,9 @@ export const Map = ({
             />
 
             {/* акулы на местах 'o' */}
-            {[...sharks].map((k) => {
-                const [c, r] = k.split(',').map(Number);
-                return (
-                    <Shark
-                        key={`s-${k}`}
-                        x={x + c * TILE_SIZE}
-                        y={y + r * TILE_SIZE}
-                    />
-                );
-            })}
+            {sharks.map((s) => (
+                <Shark key={`sh-${s.id}`} x={x + s.x} y={y + s.y} />
+            ))}
         </>
     );
 };

@@ -1,20 +1,17 @@
-import {useEffect, useState, type FC} from "react";
-import {Assets, Texture} from "pixi.js";
+import { useEffect, useState, type FC, memo } from "react";
+import { Assets, Texture } from "pixi.js";
 import bg from "../../assets/shark.png";
-import { TILE_SIZE } from '../../game/mapData';
+import { TILE_SIZE } from "../../game/mapData";
 
-type SharkType = {
-    x: number,
-    y: number
-}
+type SharkType = { x: number; y: number };
 
-export const Shark: FC<SharkType> = ({x, y}) => {
+export const Shark: FC<SharkType> = memo(({ x, y }) => {
     const [texture, setTexture] = useState(Texture.EMPTY);
-    const [position] = useState({ x, y });
 
     useEffect(() => {
         if (texture === Texture.EMPTY) Assets.load(bg).then(setTexture);
     }, [texture]);
 
-    return <pixiSprite texture={texture} x={position.x} y={position.y} width={TILE_SIZE} height={TILE_SIZE} />;
-};
+    if (texture === Texture.EMPTY) return null;
+    return <pixiSprite texture={texture} x={x} y={y} width={TILE_SIZE} height={TILE_SIZE} />;
+});
