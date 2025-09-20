@@ -1,29 +1,61 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Assets, Texture } from 'pixi.js';
+import { PelletAnim } from '../PelletAnim.tsx';
 import wallSrc from '../../assets/wall.png';
 import { MAP_COLS, MAP_ROWS, TILE_SIZE, RAW_LAYOUT } from '../../game/mapData';
 import { useGameStore } from '../../game/gameStore';
-import { Shark } from './Shark'; // <— добавили импорт
+import { Shark } from './Shark';
 
 export type MapProps = {
-    pelletColor?: number;
+    pelletColor?: number; // можно использовать как tint
     x?: number;
     y?: number;
 };
 
 export const Map = ({
-                        pelletColor = 0xfff6b7,
+                        pelletColor = 0xffffff, // если хочешь подкрашивать гиф/кадры
                         x = 0,
                         y = 0,
                     }: MapProps) => {
     const [wallTexture, setWallTexture] = useState<Texture | null>(null);
+    const [pelletFrames, setPelletFrames] = useState<Texture[] | null>(null);
 
     const initFromLayout = useGameStore((s) => s.initFromLayout);
     useEffect(() => { initFromLayout(); }, [initFromLayout]);
 
     useEffect(() => {
         let alive = true;
-        Assets.load(wallSrc).then((t) => alive && setWallTexture(t));
+
+        (async () => {
+            // стены
+            const wall = await Assets.load(wallSrc);
+            if (!alive) return;
+            setWallTexture(wall);
+
+            // кадры пеллетов (pellet_0001.png, pellet_0002.png, ...)
+            const modules = import.meta.glob('../../assets/pellet_frames/pellet_*.png', { eager: true });
+            const entries = Object.entries(modules).map(([path, mod]) => {
+                const url = (mod as any).default as string;
+                const m = path.match(/pellet_(\d+)\.png$/); // достаём индекс кадра
+                const idx = m ? parseInt(m[1], 10) : 0;
+                return { idx, url };
+            }).sort((a, b) => a.idx - b.idx);
+
+            const urls = entries.map(e => e.url);
+            if (urls.length === 0) {
+                console.warn('Нет кадров в assets/pellet_frames/pellet_*.png');
+                if (!alive) return;
+                setPelletFrames([]);
+                return;
+            }
+
+            await Assets.load(urls);
+            if (!alive) return;
+
+            const frames = urls.map(u => Texture.from(u));
+            setPelletFrames(frames);
+        })();
+
         return () => { alive = false; };
     }, []);
 
@@ -39,35 +71,48 @@ export const Map = ({
     }, [x, y]);
 
     const pellets = useGameStore((s) => s.pellets);
-    const sharks = useGameStore((s) => s.sharks);
+    const sharks  = useGameStore((s) => s.sharks);
 
     if (!wallTexture) return null;
 
-    const pelletR = 3;
+    const pelletSize = TILE_SIZE * 0.6;           // 60% клетки
+    const pelletOffset = (TILE_SIZE - pelletSize) / 2;
 
     return (
         <>
+            {/* стены */}
             {walls.map((p, i) => (
-                <pixiSprite key={`w-${i}`} texture={wallTexture} x={p.x} y={p.y} width={TILE_SIZE} height={TILE_SIZE} />
+                <pixiSprite
+                    key={`w-${i}`}
+                    texture={wallTexture}
+                    x={p.x}
+                    y={p.y}
+                    width={TILE_SIZE}
+                    height={TILE_SIZE}
+                />
             ))}
 
-            {/* обычные пеллеты */}
-            <pixiGraphics
-                draw={(g: any) => {
-                    g.clear();
-                    for (const k of pellets) {
-                        const [c, r] = k.split(',').map(Number);
-                        const cx = x + c * TILE_SIZE + TILE_SIZE / 2;
-                        const cy = y + r * TILE_SIZE + TILE_SIZE / 2;
-                        g.circle(cx, cy, pelletR);
-                    }
-                    g.fill(pelletColor);
-                }}
-            />
+            {/* пеллеты как AnimatedSprite: как в доке, только кадры из локальной папки */}
+            {pelletFrames && pelletFrames.length > 0 && [...pellets].map((k) => {
+                const [c, r] = k.split(',').map(Number);
+                const px = x + c * TILE_SIZE + pelletOffset;
+                const py = y + r * TILE_SIZE + pelletOffset;
+                return (
+                    <PelletAnim
+                        key={`p-${k}`}
+                        textures={pelletFrames}   // общий массив кадров, шарим между всеми пеллетами
+                        x={px}
+                        y={py}
+                        size={pelletSize}
+                        speed={0.25}
+                        tint={pelletColor}
+                    />
+                );
+            })}
 
-            {/* акулы на местах 'o' */}
+            {/* акулы */}
             {sharks.map((s) => (
-                <Shark key={`sh-${s.id}`} x={x + s.x} y={y + s.y} />
+                <Shark key={`sh-${s.id}`} x={x + s.x} y={y + s.y} dir={s.dir} />
             ))}
         </>
     );

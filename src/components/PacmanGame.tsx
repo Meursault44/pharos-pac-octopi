@@ -1,6 +1,6 @@
 // PacmanGame.tsx
 import { Application, extend } from '@pixi/react';
-import { Container, Graphics, Sprite, TilingSprite, DisplacementFilter } from 'pixi.js';
+import { Container, Graphics, Sprite, TilingSprite, DisplacementFilter, AnimatedSprite } from 'pixi.js';
 import { Background } from './Sprites/Background.tsx';
 import { WaterOverlay } from './Sprites/WaterOverlay.tsx';
 import { Map } from './Sprites/Map.tsx';
@@ -9,7 +9,7 @@ import { DisplacedContainer } from './DisplacedContainer.tsx';
 import { SharkAI } from "./SharkAI.tsx";
 import { TILE_SIZE, MAP_COLS, MAP_ROWS } from '../game/mapData.ts'
 
-extend({ Container, Graphics, Sprite, TilingSprite, DisplacementFilter });
+extend({ Container, Graphics, Sprite, TilingSprite, DisplacementFilter, AnimatedSprite });
 
 export const PacmanGame = () => {
     return (

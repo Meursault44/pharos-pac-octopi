@@ -10,12 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@chakra-ui/react": "^3.27.0",
+    "@emotion/react": "^11.14.0",
     "@pixi/react": "^8.0.3",
-    "@tailwindcss/vite": "^4.1.13",
     "pixi.js": "^8.13.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "tailwindcss": "^4.1.13",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

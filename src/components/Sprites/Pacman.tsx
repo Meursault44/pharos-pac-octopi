@@ -5,6 +5,7 @@ import { useTick } from '@pixi/react';
 import bg from '../../assets/pacmanRight.png';
 import { isWallAt, TILE_SIZE, MAP_COLS, MAP_ROWS, cellKey } from '../../game/mapData';
 import { useGameStore } from '../../game/gameStore';
+import {useDialogsStore} from "../../store/dialogs.ts";
 
 const keyMap: Record<string, 'up' | 'down' | 'left' | 'right' | 'space' | undefined> = {
     Space: 'space',
@@ -22,7 +23,8 @@ const HITBOX_PAD = (SPRITE_SIZE - HITBOX) / 2;
 export const Pacman = () => {
     const [texture, setTexture] = useState(Texture.EMPTY);
     const [isMoving, setIsMoving] = useState<null | 'up' | 'down' | 'left' | 'right'>(null);
-    const [position, setPosition] = useState({ x: TILE_SIZE * 8, y: TILE_SIZE * 13 });
+    const [position, setPosition] = useState({ x: TILE_SIZE * 20, y: TILE_SIZE * 8 });
+    const { setDialogLoseGame } = useDialogsStore();
 
     const consume = useGameStore((s) => s.consume);
     const sharks = useGameStore((s) => s.sharks);
@@ -93,8 +95,6 @@ export const Pacman = () => {
                 }
             }
 
-            // ⛔️ ВАЖНО: НЕ вызываем endGame() здесь.
-            // Просто отмечаем факт столкновения и остаёмся на прежней позиции.
             if (checkSharkCollision(nx, ny)) {
                 setShouldEndGame(true);
                 return prev;
@@ -129,8 +129,8 @@ export const Pacman = () => {
     useEffect(() => {
         if (!shouldEndGame) return;
         endGame();
-        console.log('GAME OVER: shark collision');
         setShouldEndGame(false);
+        setDialogLoseGame(true);
     }, [shouldEndGame, endGame]);
 
     useEffect(() => {
