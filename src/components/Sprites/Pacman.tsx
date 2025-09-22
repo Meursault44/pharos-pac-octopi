@@ -2,8 +2,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Assets, Texture } from 'pixi.js';
 import { useTick } from '@pixi/react';
-import bg from '../../assets/pacmanRight.png';
-import { isWallAt, TILE_SIZE, MAP_COLS, MAP_ROWS, cellKey } from '../../game/mapData';
+import pacmanRight from '../../assets/pacmanRight.png';
+import pacmanLeft from '../../assets/pacmanLeft.png';
+import { isWallAt, TILE_SIZE, MAP_COLS, MAP_ROWS } from '../../game/mapData';
 import { useGameStore } from '../../game/gameStore';
 import {useDialogsStore} from "../../store/dialogs.ts";
 
@@ -15,15 +16,17 @@ const keyMap: Record<string, 'up' | 'down' | 'left' | 'right' | 'space' | undefi
     KeyD: 'right', ArrowRight: 'right',
 };
 
-const SPEED = 2;
+const SPEED = 2.8;
 const SPRITE_SIZE = TILE_SIZE;
-const HITBOX = 30;
+const HITBOX = 44;
 const HITBOX_PAD = (SPRITE_SIZE - HITBOX) / 2;
 
 export const Pacman = () => {
-    const [texture, setTexture] = useState(Texture.EMPTY);
+    const [textureRight, setTextureRight] = useState(Texture.EMPTY);
+    const [textureLeft, setTextureLeft] = useState(Texture.EMPTY);
     const [isMoving, setIsMoving] = useState<null | 'up' | 'down' | 'left' | 'right'>(null);
-    const [position, setPosition] = useState({ x: TILE_SIZE * 20, y: TILE_SIZE * 8 });
+    const [facing, setFacing] = useState<'left' | 'right'>('right');
+    const [position, setPosition] = useState({ x: TILE_SIZE * 12, y: TILE_SIZE * 8 });
     const { setDialogLoseGame } = useDialogsStore();
 
     const consume = useGameStore((s) => s.consume);
@@ -38,6 +41,8 @@ export const Pacman = () => {
         const dir = keyMap[e.code];
         if (!dir || dir === 'space' || gameOver) return;
         setIsMoving(dir);
+        if (dir === 'left') setFacing('left');
+        else if (dir === 'right') setFacing('right');
     }, [gameOver]);
 
     const keyUpHandler = useCallback((e: KeyboardEvent) => {
@@ -106,6 +111,7 @@ export const Pacman = () => {
     useTick(animate);
 
     const lastCellRef = useRef<string>('');
+
     useEffect(() => {
         if (gameOver) return;
 
@@ -134,8 +140,14 @@ export const Pacman = () => {
     }, [shouldEndGame, endGame]);
 
     useEffect(() => {
-        if (texture === Texture.EMPTY) Assets.load(bg).then(setTexture);
-    }, [texture]);
+        let alive = true;
+        Promise.all([Assets.load(pacmanRight), Assets.load(pacmanLeft)]).then(([r, l]) => {
+            if (!alive) return;
+            setTextureRight(r);
+            setTextureLeft(l);
+        });
+        return () => { alive = false; };
+    }, []);
 
     useEffect(() => {
         window.addEventListener('keydown', keyDownHandler);
@@ -146,5 +158,8 @@ export const Pacman = () => {
         };
     }, [keyDownHandler, keyUpHandler]);
 
-    return <pixiSprite texture={texture} x={position.x} y={position.y} width={SPRITE_SIZE} height={SPRITE_SIZE} />;
+    const currentTexture = facing === 'left' ? textureLeft : textureRight;
+    if (currentTexture === Texture.EMPTY) return null;
+
+    return <pixiSprite texture={currentTexture} x={position.x} y={position.y} width={SPRITE_SIZE} height={SPRITE_SIZE} />;
 };

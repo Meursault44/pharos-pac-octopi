@@ -5,7 +5,7 @@ type Eaten = 'pellet' | null;
 type Dir = 'up' | 'down' | 'left' | 'right';
 export type Shark = { id: number; x: number; y: number; dir: Dir };
 
-const SHARK_SPEED = 1.5; // пикс/тик
+const SHARK_SPEED = 2.8; // пикс/тик
 
 function opposite(d: Dir): Dir {
     if (d === 'up') return 'down';
@@ -119,8 +119,8 @@ export const useGameStore = create<GameState>((set, get) => ({
                 const pickFrom = filtered.length ? filtered : options;
 
                 if (pickFrom.length) {
-                    // если текущий курс валиден — с 70% вероятностью держимся его, иначе выбираем случайный
-                    const keepCurrent = pickFrom.some((o) => o.dir === dir) && Math.random() < 0.7;
+                    // если текущий курс валиден — с 60% вероятностью держимся его, иначе выбираем случайный
+                    const keepCurrent = pickFrom.some((o) => o.dir === dir) && Math.random() < 0.6;
                     if (!keepCurrent) {
                         const choice = pickFrom[Math.floor(Math.random() * pickFrom.length)];
                         dir = choice.dir;

@@ -6,7 +6,7 @@ import { DialogLoseGame } from "./components/Dialogs/DialogLoseGame.tsx";
 export const App = () => {
     const score = useGameStore((s) => s.score);
     return (
-        <VStack h={'100vh'} justifyContent={'center'}>
+        <VStack h={'100vh'} bg={'linear-gradient(135deg, rgb(245, 242, 237) 0%, rgb(232, 234, 246) 30%, rgb(227, 242, 253) 60%, rgb(187, 222, 251) 100%)'} justifyContent={'center'}>
             <Text fontSize={'30px'}>Score: {score}</Text>
             <PacmanGame />
             <DialogLoseGame />

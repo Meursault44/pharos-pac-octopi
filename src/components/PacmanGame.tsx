@@ -14,7 +14,7 @@ extend({ Container, Graphics, Sprite, TilingSprite, DisplacementFilter, Animated
 export const PacmanGame = () => {
     return (
         <Application width={MAP_COLS * TILE_SIZE} height={MAP_ROWS * TILE_SIZE} antialias>
-            <DisplacedContainer scale={24}>
+            <DisplacedContainer scale={30}>
                 <Background />
                 <Map />
                 <Pacman />

@@ -78,6 +78,7 @@ export const Map = ({
     const pelletSize = TILE_SIZE * 0.6;           // 60% клетки
     const pelletOffset = (TILE_SIZE - pelletSize) / 2;
 
+
     return (
         <>
             {/* стены */}
@@ -104,7 +105,7 @@ export const Map = ({
                         x={px}
                         y={py}
                         size={pelletSize}
-                        speed={0.25}
+                        speed={0.35}
                         tint={pelletColor}
                     />
                 );
