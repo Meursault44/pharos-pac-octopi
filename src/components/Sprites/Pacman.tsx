@@ -1,14 +1,15 @@
-// src/components/Pacman.tsx
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Assets, Texture } from 'pixi.js';
 import { useTick } from '@pixi/react';
-import pacmanRight from '../../assets/pacmanRight.png';
-import pacmanLeft from '../../assets/pacmanLeft.png';
-import { isWallAt, TILE_SIZE, MAP_COLS, MAP_ROWS } from '../../game/mapData';
+import { isWallAt, MAP_COLS, MAP_ROWS } from '../../game/mapData';
+import { useConfig } from '../../game/configStore';
 import { useGameStore } from '../../game/gameStore';
-import {useDialogsStore} from "../../store/dialogs.ts";
+import { useDialogsStore } from '../../store/dialogs.ts';
+import { PacmanAnim } from './PacmanAnim';
 
-const keyMap: Record<string, 'up' | 'down' | 'left' | 'right' | 'space' | undefined> = {
+type Dir = 'up' | 'down' | 'left' | 'right';
+
+const keyMap: Record<string, Dir | 'space' | undefined> = {
     Space: 'space',
     KeyW: 'up', ArrowUp: 'up',
     KeyA: 'left', ArrowLeft: 'left',
@@ -16,102 +17,149 @@ const keyMap: Record<string, 'up' | 'down' | 'left' | 'right' | 'space' | undefi
     KeyD: 'right', ArrowRight: 'right',
 };
 
-const SPEED = 2.8;
-const SPRITE_SIZE = TILE_SIZE;
-const HITBOX = 44;
-const HITBOX_PAD = (SPRITE_SIZE - HITBOX) / 2;
-
 export const Pacman = () => {
-    const [textureRight, setTextureRight] = useState(Texture.EMPTY);
-    const [textureLeft, setTextureLeft] = useState(Texture.EMPTY);
-    const [isMoving, setIsMoving] = useState<null | 'up' | 'down' | 'left' | 'right'>(null);
-    const [facing, setFacing] = useState<'left' | 'right'>('right');
-    const [position, setPosition] = useState({ x: TILE_SIZE * 12, y: TILE_SIZE * 8 });
+    const TILE_SIZE       = useConfig(s => s.tileSize);
+    const PACMAN_SPEED    = useConfig(s => s.pacmanSpeed);
+    const PACMAN_HITBOX   = useConfig(s => s.pacmanHitbox);
+
+    const SPRITE_SIZE  = TILE_SIZE;
+    const HITBOX_PAD   = (SPRITE_SIZE - PACMAN_HITBOX) / 2;
+
+    const [position, setPosition] = useState({ x: TILE_SIZE * 12, y: TILE_SIZE * 8 }); // левый-верхний угол
+    const posRef = useRef(position);
+
+    const [pressed, setPressed] = useState<Dir[]>([]);
+    const [movingDir, setMovingDir] = useState<Dir>('right'); // текущее реальное направление движения
+
+    const [frames, setFrames] = useState<Texture[] | null>(null);
+
     const { setDialogLoseGame } = useDialogsStore();
+    const consume   = useGameStore((s) => s.consume);
+    const sharks    = useGameStore((s) => s.sharks);
+    const gameOver  = useGameStore((s) => s.gameOver);
+    const endGame   = useGameStore((s) => s.endGame);
 
-    const consume = useGameStore((s) => s.consume);
-    const sharks = useGameStore((s) => s.sharks);
-    const gameOver = useGameStore((s) => s.gameOver);
-    const endGame = useGameStore((s) => s.endGame);
-
-    // ⬇️ добавим локальный флаг, который безопасно дернёт endGame в useEffect
     const [shouldEndGame, setShouldEndGame] = useState(false);
 
+    // клавиатура
     const keyDownHandler = useCallback((e: KeyboardEvent) => {
         const dir = keyMap[e.code];
         if (!dir || dir === 'space' || gameOver) return;
-        setIsMoving(dir);
-        if (dir === 'left') setFacing('left');
-        else if (dir === 'right') setFacing('right');
+        setPressed((prev) => (prev.includes(dir) ? prev : [...prev, dir]));
     }, [gameOver]);
 
     const keyUpHandler = useCallback((e: KeyboardEvent) => {
         const dir = keyMap[e.code];
         if (!dir || dir === 'space') return;
-        setIsMoving((prev) => (prev === dir ? null : prev));
+        setPressed((prev) => prev.filter((d) => d !== dir));
     }, []);
 
+    // столкновение с акулами
     const checkSharkCollision = useCallback((x: number, y: number) => {
-        // хитбокс пакмана
         const hbX = x + HITBOX_PAD;
         const hbY = y + HITBOX_PAD;
-        const hbR = hbX + HITBOX;
-        const hbB = hbY + HITBOX;
+        const hbR = hbX + PACMAN_HITBOX;
+        const hbB = hbY + PACMAN_HITBOX;
 
         for (const sh of sharks) {
-            const sx = sh.x;
-            const sy = sh.y;
-            const sr = sx + TILE_SIZE;
-            const sb = sy + TILE_SIZE;
-
-            const overlap =
-                hbX < sr && hbR > sx &&
-                hbY < sb && hbB > sy;
-
-            if (overlap) return true;
+            const sx = sh.x, sy = sh.y;
+            const sr = sx + TILE_SIZE, sb = sy + TILE_SIZE;
+            if (hbX < sr && hbR > sx && hbY < sb && hbB > sy) return true;
         }
         return false;
     }, [sharks]);
 
+    // можно ли шагнуть
+    const canStep = useCallback((x: number, y: number, dir: Dir) => {
+        let nx = x, ny = y;
+        if (dir === 'up') ny -= PACMAN_SPEED;
+        else if (dir === 'down') ny += PACMAN_SPEED;
+        else if (dir === 'left') nx -= PACMAN_SPEED;
+        else nx += PACMAN_SPEED;
+
+        const hbX = nx + HITBOX_PAD;
+        const hbY = ny + HITBOX_PAD;
+        const hbRight = hbX + PACMAN_HITBOX;
+        const hbBottom = hbY + PACMAN_HITBOX;
+
+        if (hbX < 0 || hbY < 0 || hbRight > MAP_COLS * TILE_SIZE || hbBottom > MAP_ROWS * TILE_SIZE) {
+            return null;
+        }
+        const c0 = Math.floor(hbX / TILE_SIZE);
+        const r0 = Math.floor(hbY / TILE_SIZE);
+        const c1 = Math.floor((hbRight - 1) / TILE_SIZE);
+        const r1 = Math.floor((hbBottom - 1) / TILE_SIZE);
+        for (let r = r0; r <= r1; r++) {
+            for (let c = c0; c <= c1; c++) {
+                if (isWallAt(c, r)) return null;
+            }
+        }
+        return { x: nx, y: ny };
+    }, [PACMAN_SPEED, HITBOX_PAD, PACMAN_HITBOX, TILE_SIZE]);
+
+    // тик — выбор направления по стеку pressed
     const animate = useCallback(() => {
-        if (gameOver || !isMoving) return;
+        if (gameOver || pressed.length === 0) return;
 
-        setPosition((prev) => {
-            let nx = prev.x, ny = prev.y;
-            if (isMoving === 'up') ny -= SPEED;
-            else if (isMoving === 'down') ny += SPEED;
-            else if (isMoving === 'left') nx -= SPEED;
-            else if (isMoving === 'right') nx += SPEED;
+        const { x, y } = posRef.current;
 
-            // границы и стены
-            const hbX = nx + HITBOX_PAD;
-            const hbY = ny + HITBOX_PAD;
-            const hbRight = hbX + HITBOX;
-            const hbBottom = hbY + HITBOX;
-            if (hbX < 0 || hbY < 0 || hbRight > MAP_COLS * TILE_SIZE || hbBottom > MAP_ROWS * TILE_SIZE) return prev;
+        let chosenDir: Dir | null = null;
+        let nextPos: { x: number; y: number } | null = null;
 
-            const c0 = Math.floor(hbX / TILE_SIZE);
-            const r0 = Math.floor(hbY / TILE_SIZE);
-            const c1 = Math.floor((hbRight - 1) / TILE_SIZE);
-            const r1 = Math.floor((hbBottom - 1) / TILE_SIZE);
-            for (let r = r0; r <= r1; r++) {
-                for (let c = c0; c <= c1; c++) {
-                    if (isWallAt(c, r)) return prev;
-                }
-            }
+        for (let i = pressed.length - 1; i >= 0; i--) {
+            const d = pressed[i];
+            const np = canStep(x, y, d);
+            if (np) { chosenDir = d; nextPos = np; break; }
+        }
 
-            if (checkSharkCollision(nx, ny)) {
-                setShouldEndGame(true);
-                return prev;
-            }
+        if (!nextPos || !chosenDir) return;
 
-            return { x: nx, y: ny };
-        });
-    }, [isMoving, gameOver, checkSharkCollision]);
+        // акула?
+        if (checkSharkCollision(nextPos.x, nextPos.y)) {
+            setShouldEndGame(true);
+            return;
+        }
+
+        // двигаемся
+        setPosition(nextPos);
+        posRef.current = nextPos;
+        setMovingDir(chosenDir);
+    }, [pressed, gameOver, canStep, checkSharkCollision]);
+
     useTick(animate);
+    useEffect(() => { posRef.current = position; }, [position]);
 
+    // загрузка кадров пакмана
+    useEffect(() => {
+        let alive = true;
+        (async () => {
+            const modules = import.meta.glob('../../assets/pacman_frames/*-removebg-preview.png', { eager: true });
+            const entries = Object.entries(modules).map(([path, mod]) => {
+                const url = (mod as any).default as string;
+                const m = path.match(/(\d+)-removebg-preview\.png$/);
+                const idx = m ? parseInt(m[1], 10) : 0;
+                return { idx, url };
+            }).sort((a, b) => a.idx - b.idx);
+
+            const urls = entries.map(e => e.url);
+            if (urls.length === 0) {
+                console.warn('Нет кадров для пакмана');
+                if (!alive) return;
+                setFrames([]);
+                return;
+            }
+
+            await Assets.load(urls);
+            if (!alive) return;
+
+            const fr = urls.map(u => Texture.from(u));
+            setFrames(fr);
+        })();
+        return () => { alive = false; };
+    }, []);
+
+    // поедание точек + доп. проверка акул
     const lastCellRef = useRef<string>('');
-
     useEffect(() => {
         if (gameOver) return;
 
@@ -125,30 +173,20 @@ export const Pacman = () => {
             consume(col, row);
         }
 
-        // Доп.проверка на текущей позиции (без немедленного endGame)
         if (checkSharkCollision(position.x, position.y)) {
             setShouldEndGame(true);
         }
-    }, [position.x, position.y, consume, gameOver, checkSharkCollision]);
+    }, [position.x, position.y, consume, gameOver, checkSharkCollision, TILE_SIZE, SPRITE_SIZE]);
 
-    // единая точка завершения игры — безопасна для React
+    // завершение игры
     useEffect(() => {
         if (!shouldEndGame) return;
         endGame();
         setShouldEndGame(false);
         setDialogLoseGame(true);
-    }, [shouldEndGame, endGame]);
+    }, [shouldEndGame, endGame, setDialogLoseGame]);
 
-    useEffect(() => {
-        let alive = true;
-        Promise.all([Assets.load(pacmanRight), Assets.load(pacmanLeft)]).then(([r, l]) => {
-            if (!alive) return;
-            setTextureRight(r);
-            setTextureLeft(l);
-        });
-        return () => { alive = false; };
-    }, []);
-
+    // подписка на клавиатуру
     useEffect(() => {
         window.addEventListener('keydown', keyDownHandler);
         window.addEventListener('keyup', keyUpHandler);
@@ -158,8 +196,28 @@ export const Pacman = () => {
         };
     }, [keyDownHandler, keyUpHandler]);
 
-    const currentTexture = facing === 'left' ? textureLeft : textureRight;
-    if (currentTexture === Texture.EMPTY) return null;
+    // если ещё не загрузили кадры
+    if (!frames || frames.length === 0) return null;
 
-    return <pixiSprite texture={currentTexture} x={position.x} y={position.y} width={SPRITE_SIZE} height={SPRITE_SIZE} />;
+    // переводим текущее направление в угол в радианах
+    const rotation =
+        !pressed.length ? 0 : movingDir === 'right' ? Math.PI / 2
+            : movingDir === 'down' ? Math.PI
+                : movingDir === 'left' ? -Math.PI / 2
+                    : 0; // 'up'
+
+    // Рендер по центру (anchor=0.5 в PacmanAnim):
+    const renderX = position.x + SPRITE_SIZE / 2;
+    const renderY = position.y + SPRITE_SIZE / 2;
+
+    return (
+        <PacmanAnim
+            textures={frames}
+            x={renderX}
+            y={renderY}
+            size={SPRITE_SIZE}
+            speed={!pressed.length ? 0.6 : 2}
+            rotation={rotation}
+        />
+    );
 };

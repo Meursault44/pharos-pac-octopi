@@ -1,11 +1,10 @@
 import { create } from 'zustand';
-import { RAW_LAYOUT, MAP_COLS, MAP_ROWS, TILE_SIZE, cellKey, isWallAt } from './mapData';
+import { RAW_LAYOUT, MAP_COLS, MAP_ROWS, cellKey, isWallAt } from './mapData';
+import { useConfig } from './configStore';
 
 type Eaten = 'pellet' | null;
 type Dir = 'up' | 'down' | 'left' | 'right';
 export type Shark = { id: number; x: number; y: number; dir: Dir };
-
-const SHARK_SPEED = 2.8; // пикс/тик
 
 function opposite(d: Dir): Dir {
     if (d === 'up') return 'down';
@@ -16,14 +15,15 @@ function opposite(d: Dir): Dir {
 
 function canPlaceRect(nx: number, ny: number) {
     // хитбокс по размеру тайла
-    const right = nx + TILE_SIZE;
-    const bottom = ny + TILE_SIZE;
-    if (nx < 0 || ny < 0 || right > MAP_COLS * TILE_SIZE || bottom > MAP_ROWS * TILE_SIZE) return false;
+    const { tileSize } = useConfig.getState();
+    const right = nx + tileSize;
+    const bottom = ny + tileSize;
+    if (nx < 0 || ny < 0 || right > MAP_COLS * tileSize || bottom > MAP_ROWS * tileSize) return false;
 
-    const c0 = Math.floor(nx / TILE_SIZE);
-    const r0 = Math.floor(ny / TILE_SIZE);
-    const c1 = Math.floor((right - 1) / TILE_SIZE);
-    const r1 = Math.floor((bottom - 1) / TILE_SIZE);
+    const c0 = Math.floor(nx / tileSize);
+    const r0 = Math.floor(ny / tileSize);
+    const c1 = Math.floor((right - 1) / tileSize);
+    const r1 = Math.floor((bottom - 1) / tileSize);
 
     for (let r = r0; r <= r1; r++) {
         for (let c = c0; c <= c1; c++) {
@@ -56,6 +56,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         const pellets = new Set<string>();
         const sharks: Shark[] = [];
         let id = 1;
+        const { tileSize } = useConfig.getState();
 
         for (let r = 0; r < MAP_ROWS; r++) {
             const line = RAW_LAYOUT[r];
@@ -65,8 +66,8 @@ export const useGameStore = create<GameState>((set, get) => ({
                 else if (ch === 'o') {
                     sharks.push({
                         id: id++,
-                        x: c * TILE_SIZE,
-                        y: r * TILE_SIZE,
+                        x: c * tileSize,
+                        y: r * tileSize,
                         dir: 'left',
                     });
                 }
@@ -91,16 +92,18 @@ export const useGameStore = create<GameState>((set, get) => ({
         const { sharks, gameOver } = get();
         if (gameOver || sharks.length === 0) return;
 
+        const { tileSize, sharkSpeed } = useConfig.getState();
+
         const next = sharks.map((s) => {
             let { x, y, dir } = s;
 
             // если мы в центре тайла — можно переобрать направление
             const inCenter =
-                (x % TILE_SIZE === 0) && (y % TILE_SIZE === 0);
+                (x % tileSize === 0) && (y % tileSize === 0);
 
             if (inCenter) {
-                const cx = Math.floor(x / TILE_SIZE);
-                const cy = Math.floor(y / TILE_SIZE);
+                const cx = Math.floor(x / tileSize);
+                const cy = Math.floor(y / tileSize);
 
                 const options: { dir: Dir; nx: number; ny: number }[] = [];
                 const tryDir = (d: Dir, dx: number, dy: number) => {
@@ -110,10 +113,10 @@ export const useGameStore = create<GameState>((set, get) => ({
                 };
 
                 // проверим все 4, но исключим разворот, если есть альтернативы
-                tryDir('up', 0, -SHARK_SPEED);
-                tryDir('down', 0, SHARK_SPEED);
-                tryDir('left', -SHARK_SPEED, 0);
-                tryDir('right', SHARK_SPEED, 0);
+                tryDir('up', 0, -sharkSpeed);
+                tryDir('down', 0, sharkSpeed);
+                tryDir('left', -sharkSpeed, 0);
+                tryDir('right', sharkSpeed, 0);
 
                 const filtered = options.filter((o) => o.dir !== opposite(dir));
                 const pickFrom = filtered.length ? filtered : options;
@@ -130,10 +133,10 @@ export const useGameStore = create<GameState>((set, get) => ({
 
             // шаг по текущему направлению (или прежнему, если не сменили)
             let nx = x, ny = y;
-            if (dir === 'up') ny -= SHARK_SPEED;
-            else if (dir === 'down') ny += SHARK_SPEED;
-            else if (dir === 'left') nx -= SHARK_SPEED;
-            else nx += SHARK_SPEED;
+            if (dir === 'up') ny -= sharkSpeed;
+            else if (dir === 'down') ny += sharkSpeed;
+            else if (dir === 'left') nx -= sharkSpeed;
+            else nx += sharkSpeed;
 
             if (!canPlaceRect(nx, ny)) {
                 // столкнулись со стеной — развернёмся

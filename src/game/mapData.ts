@@ -1,6 +1,5 @@
 export const MAP_COLS = 27;
 export const MAP_ROWS = 14;
-export const TILE_SIZE = 60;
 
 export const RAW_LAYOUT: string[] = [
     '###########################',

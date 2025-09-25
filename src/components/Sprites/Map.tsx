@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Assets, Texture } from 'pixi.js';
 import { PelletAnim } from '../PelletAnim.tsx';
 import wallSrc from '../../assets/wall.png';
-import { MAP_COLS, MAP_ROWS, TILE_SIZE, RAW_LAYOUT } from '../../game/mapData';
+import { MAP_COLS, MAP_ROWS, RAW_LAYOUT } from '../../game/mapData';
+import { useConfig } from '../../game/configStore';
 import { useGameStore } from '../../game/gameStore';
 import { Shark } from './Shark';
 
@@ -19,6 +20,7 @@ export const Map = ({
                     }: MapProps) => {
     const [wallTexture, setWallTexture] = useState<Texture | null>(null);
     const [pelletFrames, setPelletFrames] = useState<Texture[] | null>(null);
+    const TILE_SIZE = useConfig(s => s.tileSize);
 
     const initFromLayout = useGameStore((s) => s.initFromLayout);
     useEffect(() => { initFromLayout(); }, [initFromLayout]);

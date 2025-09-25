@@ -2,7 +2,7 @@ import { useEffect, useState, type FC, memo } from "react";
 import { Assets, Texture } from "pixi.js";
 import sharkRight from "../../assets/shark_right.png";
 import sharkLeft from "../../assets/shark_left.png";
-import { TILE_SIZE } from "../../game/mapData";
+import {useConfig} from "../../game/configStore.ts";
 
 type Dir = "up" | "down" | "left" | "right";
 
@@ -15,6 +15,7 @@ type SharkProps = {
 export const Shark: FC<SharkProps> = memo(({ x, y, dir }) => {
     const [leftTex, setLeftTex] = useState<Texture | null>(null);
     const [rightTex, setRightTex] = useState<Texture | null>(null);
+    const TILE_SIZE = useConfig(s => s.tileSize);
 
     useEffect(() => {
         let alive = true;
