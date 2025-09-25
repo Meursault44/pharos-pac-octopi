@@ -1,16 +1,16 @@
 import { create } from 'zustand';
 
 type DialogsState = {
-    dialogLoseGame: boolean;
+  dialogLoseGame: boolean;
 };
 
 type DialogsActions = {
-    setDialogLoseGame: (val: boolean) => void;
+  setDialogLoseGame: (val: boolean) => void;
 };
 
 type DialogsStore = DialogsState & DialogsActions;
 
 export const useDialogsStore = create<DialogsStore>()((set) => ({
-    dialogLoseGame: false,
-    setDialogLoseGame: (val) => set({ dialogLoseGame: val }),
+  dialogLoseGame: false,
+  setDialogLoseGame: (val) => set({ dialogLoseGame: val }),
 }));
