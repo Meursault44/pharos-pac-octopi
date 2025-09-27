@@ -18,6 +18,24 @@ function opposite(d: Dir): Dir {
   return 'left';
 }
 
+// helpers над moveSharks (можно добавить рядом с opposite/canPlaceRect)
+function isWalkableCell(c: number, r: number) {
+  // Проходима, если не стена и в пределах карты
+  return c >= 0 && r >= 0 && c < MAP_COLS && r < MAP_ROWS && !isWallAt(c, r);
+}
+
+function pickWeighted<T>(items: Array<{ v: T; w: number }>): T {
+  let sum = 0;
+  for (const it of items) sum += it.w;
+  const r = Math.random() * (sum || 1);
+  let acc = 0;
+  for (const it of items) {
+    acc += it.w;
+    if (r <= acc) return it.v;
+  }
+  return items[items.length - 1]!.v;
+}
+
 function canPlaceRect(nx: number, ny: number) {
   const { tileSize } = useConfig.getState();
   const right = nx + tileSize;
@@ -130,35 +148,57 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const { tileSize, sharkSpeed } = useConfig.getState();
 
+    // допускаем "почти центр" и снапаем
+    const CENTER_EPS = Math.max(1, Math.floor(sharkSpeed / 2));
+
     const next = sharks.map((s) => {
       let { x, y, dir } = s;
-      const inCenter = x % tileSize === 0 && y % tileSize === 0;
 
-      if (inCenter) {
-        const options: { dir: Dir; nx: number; ny: number }[] = [];
-        const tryDir = (d: Dir, dx: number, dy: number) => {
-          const nx = x + dx;
-          const ny = y + dy;
-          if (canPlaceRect(nx, ny)) options.push({ dir: d, nx, ny });
-        };
+      // текущая клетка по ближайшему центру
+      const cc = Math.round(x / tileSize);
+      const rr = Math.round(y / tileSize);
+      const cx = cc * tileSize;
+      const cy = rr * tileSize;
 
-        tryDir('up', 0, -sharkSpeed);
-        tryDir('down', 0, sharkSpeed);
-        tryDir('left', -sharkSpeed, 0);
-        tryDir('right', sharkSpeed, 0);
+      // в центре ли клетки с учетом ε
+      const nearCenter = Math.abs(x - cx) <= CENTER_EPS && Math.abs(y - cy) <= CENTER_EPS;
 
-        const filtered = options.filter((o) => o.dir !== opposite(dir));
-        const pickFrom = filtered.length ? filtered : options;
+      if (nearCenter) {
+        // снап к точному центру, чтобы не накапливать ошибку
+        x = cx;
+        y = cy;
 
-        if (pickFrom.length) {
-          const keepCurrent = pickFrom.some((o) => o.dir === dir) && Math.random() < 0.6;
-          if (!keepCurrent) {
-            const choice = pickFrom[Math.floor(Math.random() * pickFrom.length)];
-            dir = choice.dir;
-          }
+        // доступные направления по клеткам
+        const options: Dir[] = [];
+        const neigh: Array<{ d: Dir; c: number; r: number }> = [
+          { d: 'up', c: cc, r: rr - 1 },
+          { d: 'down', c: cc, r: rr + 1 },
+          { d: 'left', c: cc - 1, r: rr },
+          { d: 'right', c: cc + 1, r: rr },
+        ];
+        for (const n of neigh) {
+          if (isWalkableCell(n.c, n.r)) options.push(n.d);
         }
+
+        // если есть варианты кроме обратного — исключаем мгновенный разворот
+        let candidates = options.filter((d0) => d0 !== opposite(dir));
+        if (candidates.length === 0) candidates = options.slice(); // тупик — можно и назад
+
+        // взвешенный выбор: вперёд — чуть приоритетнее, повороты — тоже ок
+        // так акулы не «залипают» в одной прямой
+        const weights = candidates.map((d0) => {
+          if (d0 === dir) return { v: d0, w: 3 }; // держать курс
+          if ((dir === 'up' || dir === 'down') && (d0 === 'left' || d0 === 'right'))
+            return { v: d0, w: 2 }; // поворот
+          if ((dir === 'left' || dir === 'right') && (d0 === 'up' || d0 === 'down'))
+            return { v: d0, w: 2 };
+          return { v: d0, w: 1 }; // на всякий
+        });
+
+        dir = pickWeighted(weights);
       }
 
+      // шаг по выбранному направлению
       let nx = x,
         ny = y;
       if (dir === 'up') ny -= sharkSpeed;
@@ -166,14 +206,37 @@ export const useGameStore = create<GameState>((set, get) => ({
       else if (dir === 'left') nx -= sharkSpeed;
       else nx += sharkSpeed;
 
+      // если упёрлись в стену (могли повернуть слишком поздно) — попробуем
+      // альтернативы в приоритете: поворот -> вперёд -> назад
       if (!canPlaceRect(nx, ny)) {
-        dir = opposite(dir);
-      } else {
-        x = nx;
-        y = ny;
+        const alternatives: Dir[] = [];
+        if (dir === 'up' || dir === 'down') {
+          alternatives.push('left', 'right', dir, opposite(dir));
+        } else {
+          alternatives.push('up', 'down', dir, opposite(dir));
+        }
+
+        let turned = false;
+        for (const d2 of alternatives) {
+          const tryX = d2 === 'left' ? x - sharkSpeed : d2 === 'right' ? x + sharkSpeed : x;
+          const tryY = d2 === 'up' ? y - sharkSpeed : d2 === 'down' ? y + sharkSpeed : y;
+          if (canPlaceRect(tryX, tryY)) {
+            dir = d2;
+            nx = tryX;
+            ny = tryY;
+            turned = true;
+            break;
+          }
+        }
+
+        if (!turned) {
+          // совсем зажаты — остаёмся на месте; можно ещё слегка отскочить
+          nx = x;
+          ny = y;
+        }
       }
 
-      return { ...s, x, y, dir };
+      return { ...s, x: nx, y: ny, dir };
     });
 
     set({ sharks: next });
@@ -195,7 +258,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       pacman: {
         x: START_COL * tileSize,
         y: START_ROW * tileSize,
-        dir: 'right',
+        dir: 'up',
       },
     });
   },

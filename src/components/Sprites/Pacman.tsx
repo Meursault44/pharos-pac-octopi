@@ -225,8 +225,9 @@ export const Pacman = () => {
 
   if (!frames || frames.length === 0) return null;
 
-  const rotation =
-    pacman.dir === 'right'
+  const rotation = !pressed.length
+    ? 0
+    : pacman.dir === 'right'
       ? Math.PI / 2
       : pacman.dir === 'down'
         ? Math.PI
