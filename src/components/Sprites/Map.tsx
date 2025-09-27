@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { Assets, Texture } from 'pixi.js';
 import { PelletAnim } from '../PelletAnim.tsx';
+import { useTick } from '@pixi/react';
 import wallSrc from '@/assets/wall.png';
 import { MAP_COLS, MAP_ROWS, RAW_LAYOUT } from '@/game/mapData';
 import { useConfig } from '@/game/configStore';
@@ -21,6 +22,9 @@ export const Map = ({
   const [wallTexture, setWallTexture] = useState<Texture | null>(null);
   const [pelletFrames, setPelletFrames] = useState<Texture[] | null>(null);
   const TILE_SIZE = useConfig((s) => s.tileSize);
+
+  const frameRef = useRef(0);
+  const [, force] = useState(0); // простой триггер на перерисовку
 
   const initFromLayout = useGameStore((s) => s.initFromLayout);
   useEffect(() => {
@@ -81,6 +85,19 @@ export const Map = ({
   const pellets = useGameStore((s) => s.pellets);
   const sharks = useGameStore((s) => s.sharks);
 
+  const PELLET_FPS = 12; // частота кадров
+  const SPEED = 1.5; // множитель скорости
+
+  useTick(({ deltaTime }) => {
+    if (!pelletFrames || pelletFrames.length === 0) return;
+    // delta ~ кол-во кадров от прошлого тика; 60fps -> delta≈1
+    // переводим в кадры пеллет
+    frameRef.current =
+      (frameRef.current + deltaTime * (PELLET_FPS / 60) * SPEED) % pelletFrames.length;
+    // лёгкий триггер перерисовки (раз в тик нормально для мелкой сцены)
+    force((n) => (n + 1) % 1000000);
+  });
+
   if (!wallTexture) return null;
 
   const pelletSize = TILE_SIZE * 0.6; // 60% клетки
@@ -110,11 +127,11 @@ export const Map = ({
           return (
             <PelletAnim
               key={`p-${k}`}
-              textures={pelletFrames} // общий массив кадров, шарим между всеми пеллетами
+              textures={pelletFrames}
               x={px}
               y={py}
               size={pelletSize}
-              speed={0.35}
+              frameIndex={Math.floor(frameRef.current)} // <-- общий кадр
               tint={pelletColor}
             />
           );

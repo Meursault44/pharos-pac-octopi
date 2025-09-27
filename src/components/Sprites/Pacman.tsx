@@ -5,7 +5,7 @@ import { useTick } from '@pixi/react';
 import { isWallAt, MAP_COLS, MAP_ROWS } from '@/game/mapData';
 import { useConfig } from '@/game/configStore';
 import { useGameStore } from '@/game/gameStore';
-import { useDialogsStore } from '@/store/dialogs.ts';
+import { useDialogsStore } from '@/store/dialogs';
 import { PacmanAnim } from './PacmanAnim';
 
 type Dir = 'up' | 'down' | 'left' | 'right';
@@ -30,39 +30,39 @@ export const Pacman = () => {
   const SPRITE_SIZE = TILE_SIZE;
   const HITBOX_PAD = (SPRITE_SIZE - PACMAN_HITBOX) / 2;
 
-  const [position, setPosition] = useState({ x: TILE_SIZE * 12, y: TILE_SIZE * 8 });
-  const posRef = useRef(position);
-
-  const [pressed, setPressed] = useState<Dir[]>([]);
-  const [movingDir, setMovingDir] = useState<Dir>('right');
-  const [frames, setFrames] = useState<Texture[] | null>(null);
-
-  const { setDialogLoseGame } = useDialogsStore();
+  const pacman = useGameStore((s) => s.pacman);
+  const setPacmanPos = useGameStore((s) => s.setPacmanPos);
+  const setPacmanDir = useGameStore((s) => s.setPacmanDir);
   const consume = useGameStore((s) => s.consume);
   const sharks = useGameStore((s) => s.sharks);
   const gameOver = useGameStore((s) => s.gameOver);
   const endGame = useGameStore((s) => s.endGame);
-
-  // NEW:
   const isRunning = useGameStore((s) => s.isRunning);
   const startGame = useGameStore((s) => s.startGame);
 
+  const { setDialogLoseGame } = useDialogsStore();
+
+  const [pressed, setPressed] = useState<Dir[]>([]);
+  const [frames, setFrames] = useState<Texture[] | null>(null);
   const [shouldEndGame, setShouldEndGame] = useState(false);
 
+  const posRef = useRef(pacman);
+  useEffect(() => {
+    posRef.current = pacman;
+  }, [pacman]);
+
   const keyDownHandler = useCallback(
-      (e: KeyboardEvent) => {
-        const dir = keyMap[e.code];
-        if (!dir || gameOver) return;
+    (e: KeyboardEvent) => {
+      const dir = keyMap[e.code];
+      if (!dir || gameOver) return;
 
-        if (dir === 'space') {
-          if (!isRunning) startGame();
-          return;
-        }
-
-        // разрешаем складывать направления даже в паузе — по желанию можно это ограничить
-        setPressed((prev) => (prev.includes(dir) ? prev : [...prev, dir]));
-      },
-      [gameOver, isRunning, startGame],
+      if (dir === 'space') {
+        if (!isRunning) startGame();
+        return;
+      }
+      setPressed((prev) => (prev.includes(dir) ? prev : [...prev, dir]));
+    },
+    [gameOver, isRunning, startGame],
   );
 
   const keyUpHandler = useCallback((e: KeyboardEvent) => {
@@ -71,55 +71,67 @@ export const Pacman = () => {
     setPressed((prev) => prev.filter((d) => d !== dir));
   }, []);
 
-  const checkSharkCollision = useCallback(
-      (x: number, y: number) => {
-        const hbX = x + HITBOX_PAD;
-        const hbY = y + HITBOX_PAD;
-        const hbR = hbX + PACMAN_HITBOX;
-        const hbB = hbY + PACMAN_HITBOX;
+  useEffect(() => {
+    window.addEventListener('keydown', keyDownHandler);
+    window.addEventListener('keyup', keyUpHandler);
+    return () => {
+      window.removeEventListener('keydown', keyDownHandler);
+      window.removeEventListener('keyup', keyUpHandler);
+    };
+  }, [keyDownHandler, keyUpHandler]);
 
-        for (const sh of sharks) {
-          const sx = sh.x, sy = sh.y;
-          const sr = sx + TILE_SIZE, sb = sy + TILE_SIZE;
-          if (hbX < sr && hbR > sx && hbY < sb && hbB > sy) return true;
-        }
-        return false;
-      },
-      [sharks, HITBOX_PAD, PACMAN_HITBOX, TILE_SIZE],
+  const checkSharkCollision = useCallback(
+    (x: number, y: number) => {
+      const hbX = x + HITBOX_PAD;
+      const hbY = y + HITBOX_PAD;
+      const hbR = hbX + PACMAN_HITBOX;
+      const hbB = hbY + PACMAN_HITBOX;
+
+      for (const sh of sharks) {
+        const sx = sh.x,
+          sy = sh.y;
+        const sr = sx + TILE_SIZE,
+          sb = sy + TILE_SIZE;
+        if (hbX < sr && hbR > sx && hbY < sb && hbB > sy) return true;
+      }
+      return false;
+    },
+    [sharks, HITBOX_PAD, PACMAN_HITBOX, TILE_SIZE],
   );
 
   const canStep = useCallback(
-      (x: number, y: number, dir: Dir) => {
-        let nx = x, ny = y;
-        if (dir === 'up') ny -= PACMAN_SPEED;
-        else if (dir === 'down') ny += PACMAN_SPEED;
-        else if (dir === 'left') nx -= PACMAN_SPEED;
-        else nx += PACMAN_SPEED;
+    (x: number, y: number, dir: Dir) => {
+      let nx = x,
+        ny = y;
+      if (dir === 'up') ny -= PACMAN_SPEED;
+      else if (dir === 'down') ny += PACMAN_SPEED;
+      else if (dir === 'left') nx -= PACMAN_SPEED;
+      else nx += PACMAN_SPEED;
 
-        const hbX = nx + HITBOX_PAD;
-        const hbY = ny + HITBOX_PAD;
-        const hbRight = hbX + PACMAN_HITBOX;
-        const hbBottom = hbY + PACMAN_HITBOX;
+      const hbX = nx + HITBOX_PAD;
+      const hbY = ny + HITBOX_PAD;
+      const hbRight = hbX + PACMAN_HITBOX;
+      const hbBottom = hbY + PACMAN_HITBOX;
 
-        if (hbX < 0 || hbY < 0 || hbRight > MAP_COLS * TILE_SIZE || hbBottom > MAP_ROWS * TILE_SIZE) {
-          return null;
+      if (hbX < 0 || hbY < 0 || hbRight > MAP_COLS * TILE_SIZE || hbBottom > MAP_ROWS * TILE_SIZE)
+        return null;
+
+      const c0 = Math.floor(hbX / TILE_SIZE);
+      const r0 = Math.floor(hbY / TILE_SIZE);
+      const c1 = Math.floor((hbRight - 1) / TILE_SIZE);
+      const r1 = Math.floor((hbBottom - 1) / TILE_SIZE);
+
+      for (let r = r0; r <= r1; r++) {
+        for (let c = c0; c <= c1; c++) {
+          if (isWallAt(c, r)) return null;
         }
-        const c0 = Math.floor(hbX / TILE_SIZE);
-        const r0 = Math.floor(hbY / TILE_SIZE);
-        const c1 = Math.floor((hbRight - 1) / TILE_SIZE);
-        const r1 = Math.floor((hbBottom - 1) / TILE_SIZE);
-        for (let r = r0; r <= r1; r++) {
-          for (let c = c0; c <= c1; c++) {
-            if (isWallAt(c, r)) return null;
-          }
-        }
-        return { x: nx, y: ny };
-      },
-      [PACMAN_SPEED, HITBOX_PAD, PACMAN_HITBOX, TILE_SIZE],
+      }
+      return { x: nx, y: ny };
+    },
+    [PACMAN_SPEED, HITBOX_PAD, PACMAN_HITBOX, TILE_SIZE],
   );
 
   const animate = useCallback(() => {
-    // NEW: не двигаемся, если игра не запущена
     if (gameOver || !isRunning || pressed.length === 0) return;
 
     const { x, y } = posRef.current;
@@ -144,27 +156,27 @@ export const Pacman = () => {
       return;
     }
 
-    setPosition(nextPos);
-    posRef.current = nextPos;
-    setMovingDir(chosenDir);
-  }, [pressed, gameOver, isRunning, canStep, checkSharkCollision]);
+    setPacmanPos(nextPos.x, nextPos.y);
+    setPacmanDir(chosenDir);
+    posRef.current = { ...nextPos, dir: chosenDir };
+  }, [pressed, gameOver, isRunning, canStep, checkSharkCollision, setPacmanPos, setPacmanDir]);
 
   useTick(animate);
-  useEffect(() => { posRef.current = position; }, [position]);
 
-  // Загрузка кадров — без изменений
   useEffect(() => {
     let alive = true;
     (async () => {
-      const modules = import.meta.glob('../../assets/pacman_frames/*-removebg-preview.png', { eager: true });
+      const modules = import.meta.glob('../../assets/pacman_frames/*-removebg-preview.png', {
+        eager: true,
+      });
       const entries = Object.entries(modules)
-          .map(([path, mod]) => {
-            const url = (mod as any).default as string;
-            const m = path.match(/(\d+)-removebg-preview\.png$/);
-            const idx = m ? parseInt(m[1], 10) : 0;
-            return { idx, url };
-          })
-          .sort((a, b) => a.idx - b.idx);
+        .map(([path, mod]) => {
+          const url = (mod as any).default as string;
+          const m = path.match(/(\d+)-removebg-preview\.png$/);
+          const idx = m ? parseInt(m[1], 10) : 0;
+          return { idx, url };
+        })
+        .sort((a, b) => a.idx - b.idx);
 
       const urls = entries.map((e) => e.url);
       if (urls.length === 0) {
@@ -179,28 +191,30 @@ export const Pacman = () => {
       const fr = urls.map((u) => Texture.from(u));
       setFrames(fr);
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  // поедание точек + проверка акул — как было
   const lastCellRef = useRef<string>('');
   useEffect(() => {
     if (gameOver) return;
 
-    const centerX = position.x + SPRITE_SIZE / 2;
-    const centerY = position.y + SPRITE_SIZE / 2;
+    const centerX = pacman.x + SPRITE_SIZE / 2;
+    const centerY = pacman.y + SPRITE_SIZE / 2;
     const col = Math.floor(centerX / TILE_SIZE);
     const row = Math.floor(centerY / TILE_SIZE);
     const k = `${col},${row}`;
+
     if (k !== lastCellRef.current) {
       lastCellRef.current = k;
       consume(col, row);
     }
 
-    if (checkSharkCollision(position.x, position.y)) {
+    if (checkSharkCollision(pacman.x, pacman.y)) {
       setShouldEndGame(true);
     }
-  }, [position.x, position.y, consume, gameOver, checkSharkCollision, TILE_SIZE, SPRITE_SIZE]);
+  }, [pacman.x, pacman.y, consume, gameOver, checkSharkCollision, TILE_SIZE, SPRITE_SIZE]);
 
   useEffect(() => {
     if (!shouldEndGame) return;
@@ -209,38 +223,28 @@ export const Pacman = () => {
     setDialogLoseGame(true);
   }, [shouldEndGame, endGame, setDialogLoseGame]);
 
-  useEffect(() => {
-    window.addEventListener('keydown', keyDownHandler);
-    window.addEventListener('keyup', keyUpHandler);
-    return () => {
-      window.removeEventListener('keydown', keyDownHandler);
-      window.removeEventListener('keyup', keyUpHandler);
-    };
-  }, [keyDownHandler, keyUpHandler]);
-
   if (!frames || frames.length === 0) return null;
 
-  const rotation = !pressed.length
-      ? 0
-      : movingDir === 'right'
-          ? Math.PI / 2
-          : movingDir === 'down'
-              ? Math.PI
-              : movingDir === 'left'
-                  ? -Math.PI / 2
-                  : 0;
+  const rotation =
+    pacman.dir === 'right'
+      ? Math.PI / 2
+      : pacman.dir === 'down'
+        ? Math.PI
+        : pacman.dir === 'left'
+          ? -Math.PI / 2
+          : 0;
 
-  const renderX = position.x + SPRITE_SIZE / 2;
-  const renderY = position.y + SPRITE_SIZE / 2;
+  const renderX = pacman.x + SPRITE_SIZE / 2;
+  const renderY = pacman.y + SPRITE_SIZE / 2;
 
   return (
-      <PacmanAnim
-          textures={frames}
-          x={renderX}
-          y={renderY}
-          size={SPRITE_SIZE}
-          speed={!pressed.length ? 0.6 : 2}
-          rotation={rotation}
-      />
+    <PacmanAnim
+      textures={frames}
+      x={renderX}
+      y={renderY}
+      size={SPRITE_SIZE}
+      speed={pressed.length ? 2 : 0.6}
+      rotation={rotation}
+    />
   );
 };

@@ -1,38 +1,17 @@
-import { useEffect, useRef, type FC } from 'react';
-import type { AnimatedSprite as PixiAnimatedSprite, Texture } from 'pixi.js';
+// PelletAnim.tsx
+import type { FC } from 'react';
+import type { Texture } from 'pixi.js';
 
 type PelletAnimProps = {
-  textures: Texture[]; // массив кадров (НЕ пустой)
+  textures: Texture[];
   x: number;
   y: number;
   size: number;
-  speed?: number; // animationSpeed
+  frameIndex: number; // <-- общий кадр приходит извне
   tint?: number;
 };
 
-export const PelletAnim: FC<PelletAnimProps> = ({ textures, x, y, size, speed = 0.25, tint }) => {
-  const ref = useRef<PixiAnimatedSprite | null>(null);
-
-  useEffect(() => {
-    const spr = ref.current;
-    if (!spr || textures.length === 0) return;
-    // скорость и старт проигрывания, как в примере Pixi
-    spr.animationSpeed = speed;
-    spr.loop = true;
-    spr.gotoAndPlay(0);
-    return () => spr.stop();
-  }, [textures, speed]);
-
-  return (
-    <pixiAnimatedSprite
-      ref={ref}
-      textures={textures}
-      x={x}
-      y={y}
-      width={size}
-      height={size}
-      tint={tint}
-      loop
-    />
-  );
+export const PelletAnim: FC<PelletAnimProps> = ({ textures, x, y, size, frameIndex, tint }) => {
+  const tex = textures[frameIndex % textures.length];
+  return <pixiSprite texture={tex} x={x} y={y} width={size} height={size} tint={tint} />;
 };

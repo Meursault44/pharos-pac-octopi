@@ -7,6 +7,10 @@ type Eaten = 'pellet' | null;
 type Dir = 'up' | 'down' | 'left' | 'right';
 export type Shark = { id: number; x: number; y: number; dir: Dir };
 
+// координаты стартовой позиции пакмана
+const START_COL = 12;
+const START_ROW = 8;
+
 function opposite(d: Dir): Dir {
   if (d === 'up') return 'down';
   if (d === 'down') return 'up';
@@ -39,17 +43,24 @@ export type GameState = {
   score: number;
   gameOver: boolean;
   isWin: boolean;
-
-  // NEW:
   isRunning: boolean;
-  startGame: () => void;
 
+  // 🟡 Позиция пакмана:
+  pacman: { x: number; y: number; dir: Dir };
+
+  // Методы
+  startGame: () => void;
   initFromLayout: () => void;
   consume: (c: number, r: number) => Eaten;
   moveSharks: () => void;
   endGame: () => void;
   setIsWin: (val: boolean) => void;
   reset: () => void;
+
+  // 🟡 Методы пакмана:
+  setPacmanPos: (x: number, y: number) => void;
+  setPacmanDir: (dir: Dir) => void;
+  resetPacman: () => void;
 };
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -58,11 +69,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   score: 0,
   isWin: false,
   gameOver: false,
-
-  // NEW:
   isRunning: false,
+
+  // стартовая позиция пакмана
+  pacman: { x: 0, y: 0, dir: 'right' },
+
   startGame: () => set({ isRunning: true }),
-  setIsWin: (val) => set({isWin: val}),
+  setIsWin: (val) => set({ isWin: val }),
 
   initFromLayout: () => {
     const pellets = new Set<string>();
@@ -86,7 +99,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     }
 
-    set({ pellets, sharks, score: 0, gameOver: false, isRunning: false }); // старт — в паузе
+    // сбрасываем всё и пакмана
+    set({
+      pellets,
+      sharks,
+      score: 0,
+      gameOver: false,
+      isRunning: false,
+    });
+    get().resetPacman();
   },
 
   consume: (c, r) => {
@@ -95,7 +116,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (pellets.has(k)) {
       pellets.delete(k);
       set((s) => ({ pellets: new Set(pellets), score: s.score + 10 }));
-      if (get().score > 100) {
+      if (get().score > 3000) {
         set({ isWin: true, gameOver: true, isRunning: false });
       }
       return 'pellet';
@@ -105,13 +126,12 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   moveSharks: () => {
     const { sharks, gameOver, isRunning } = get();
-    if (gameOver || !isRunning || sharks.length === 0) return; // NEW: стоп, если не запущено
+    if (gameOver || !isRunning || sharks.length === 0) return;
 
     const { tileSize, sharkSpeed } = useConfig.getState();
 
     const next = sharks.map((s) => {
       let { x, y, dir } = s;
-
       const inCenter = x % tileSize === 0 && y % tileSize === 0;
 
       if (inCenter) {
@@ -139,7 +159,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
       }
 
-      let nx = x, ny = y;
+      let nx = x,
+        ny = y;
       if (dir === 'up') ny -= sharkSpeed;
       else if (dir === 'down') ny += sharkSpeed;
       else if (dir === 'left') nx -= sharkSpeed;
@@ -148,7 +169,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (!canPlaceRect(nx, ny)) {
         dir = opposite(dir);
       } else {
-        x = nx; y = ny;
+        x = nx;
+        y = ny;
       }
 
       return { ...s, x, y, dir };
@@ -157,9 +179,24 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ sharks: next });
   },
 
-  endGame: () => set({ gameOver: true, isRunning: false }), // остановим игру
+  endGame: () => set({ gameOver: true, isRunning: false }),
 
   reset: () => {
-    get().initFromLayout(); // вернёмся к начальному и в паузу
+    get().initFromLayout();
+    get().resetPacman();
+  },
+
+  // === 🟡 Методы пакмана ===
+  setPacmanPos: (x, y) => set((s) => ({ pacman: { ...s.pacman, x, y } })),
+  setPacmanDir: (dir) => set((s) => ({ pacman: { ...s.pacman, dir } })),
+  resetPacman: () => {
+    const { tileSize } = useConfig.getState();
+    set({
+      pacman: {
+        x: START_COL * tileSize,
+        y: START_ROW * tileSize,
+        dir: 'right',
+      },
+    });
   },
 }));
