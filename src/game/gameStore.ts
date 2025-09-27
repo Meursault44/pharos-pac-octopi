@@ -1,3 +1,4 @@
+// gameStore.ts
 import { create } from 'zustand';
 import { RAW_LAYOUT, MAP_COLS, MAP_ROWS, cellKey, isWallAt } from './mapData';
 import { useConfig } from './configStore';
@@ -14,7 +15,6 @@ function opposite(d: Dir): Dir {
 }
 
 function canPlaceRect(nx: number, ny: number) {
-  // хитбокс по размеру тайла
   const { tileSize } = useConfig.getState();
   const right = nx + tileSize;
   const bottom = ny + tileSize;
@@ -38,11 +38,17 @@ export type GameState = {
   sharks: Shark[];
   score: number;
   gameOver: boolean;
+  isWin: boolean;
+
+  // NEW:
+  isRunning: boolean;
+  startGame: () => void;
 
   initFromLayout: () => void;
   consume: (c: number, r: number) => Eaten;
   moveSharks: () => void;
   endGame: () => void;
+  setIsWin: (val: boolean) => void;
   reset: () => void;
 };
 
@@ -50,7 +56,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   pellets: new Set(),
   sharks: [],
   score: 0,
+  isWin: false,
   gameOver: false,
+
+  // NEW:
+  isRunning: false,
+  startGame: () => set({ isRunning: true }),
+  setIsWin: (val) => set({isWin: val}),
 
   initFromLayout: () => {
     const pellets = new Set<string>();
@@ -74,7 +86,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     }
 
-    set({ pellets, sharks, score: 0, gameOver: false });
+    set({ pellets, sharks, score: 0, gameOver: false, isRunning: false }); // старт — в паузе
   },
 
   consume: (c, r) => {
@@ -83,21 +95,23 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (pellets.has(k)) {
       pellets.delete(k);
       set((s) => ({ pellets: new Set(pellets), score: s.score + 10 }));
+      if (get().score > 100) {
+        set({ isWin: true, gameOver: true, isRunning: false });
+      }
       return 'pellet';
     }
     return null;
   },
 
   moveSharks: () => {
-    const { sharks, gameOver } = get();
-    if (gameOver || sharks.length === 0) return;
+    const { sharks, gameOver, isRunning } = get();
+    if (gameOver || !isRunning || sharks.length === 0) return; // NEW: стоп, если не запущено
 
     const { tileSize, sharkSpeed } = useConfig.getState();
 
     const next = sharks.map((s) => {
       let { x, y, dir } = s;
 
-      // если мы в центре тайла — можно переобрать направление
       const inCenter = x % tileSize === 0 && y % tileSize === 0;
 
       if (inCenter) {
@@ -108,7 +122,6 @@ export const useGameStore = create<GameState>((set, get) => ({
           if (canPlaceRect(nx, ny)) options.push({ dir: d, nx, ny });
         };
 
-        // проверим все 4, но исключим разворот, если есть альтернативы
         tryDir('up', 0, -sharkSpeed);
         tryDir('down', 0, sharkSpeed);
         tryDir('left', -sharkSpeed, 0);
@@ -118,7 +131,6 @@ export const useGameStore = create<GameState>((set, get) => ({
         const pickFrom = filtered.length ? filtered : options;
 
         if (pickFrom.length) {
-          // если текущий курс валиден — с 60% вероятностью держимся его, иначе выбираем случайный
           const keepCurrent = pickFrom.some((o) => o.dir === dir) && Math.random() < 0.6;
           if (!keepCurrent) {
             const choice = pickFrom[Math.floor(Math.random() * pickFrom.length)];
@@ -127,20 +139,16 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
       }
 
-      // шаг по текущему направлению (или прежнему, если не сменили)
-      let nx = x,
-        ny = y;
+      let nx = x, ny = y;
       if (dir === 'up') ny -= sharkSpeed;
       else if (dir === 'down') ny += sharkSpeed;
       else if (dir === 'left') nx -= sharkSpeed;
       else nx += sharkSpeed;
 
       if (!canPlaceRect(nx, ny)) {
-        // столкнулись со стеной — развернёмся
         dir = opposite(dir);
       } else {
-        x = nx;
-        y = ny;
+        x = nx; y = ny;
       }
 
       return { ...s, x, y, dir };
@@ -149,7 +157,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ sharks: next });
   },
 
-  endGame: () => set({ gameOver: true }),
+  endGame: () => set({ gameOver: true, isRunning: false }), // остановим игру
 
-  reset: () => get().initFromLayout(),
+  reset: () => {
+    get().initFromLayout(); // вернёмся к начальному и в паузу
+  },
 }));
