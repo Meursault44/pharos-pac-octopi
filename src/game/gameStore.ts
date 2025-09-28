@@ -134,7 +134,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (pellets.has(k)) {
       pellets.delete(k);
       set((s) => ({ pellets: new Set(pellets), score: s.score + 10 }));
-      if (get().score > 3000) {
+      if (get().score > 100) {
         set({ isWin: true, gameOver: true, isRunning: false });
       }
       return 'pellet';

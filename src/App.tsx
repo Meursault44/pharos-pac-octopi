@@ -2,6 +2,8 @@ import { PacmanGame } from './components/PacmanGame.tsx';
 import { useGameStore } from './game/gameStore.ts';
 import { VStack, Text } from '@chakra-ui/react';
 import { DialogLoseGame, DialogStartGame, DialogWinGame } from '@/components/Dialogs';
+import OrientationGateChakra from '@/components/OrientationGateChakra';
+import MobileTouchpadChakra from '@/components/MobileTouchpadChakra';
 
 export const App = () => {
   const score = useGameStore((s) => s.score);
@@ -15,6 +17,8 @@ export const App = () => {
     >
       <Text fontSize={'2rem'}>Score: {score}</Text>
       <PacmanGame />
+      <OrientationGateChakra />
+      <MobileTouchpadChakra />
       <DialogLoseGame />
       <DialogStartGame />
       <DialogWinGame />
