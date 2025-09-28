@@ -92,7 +92,7 @@ export default function MobileTouchpadChakra() {
           onMouseDown={handlers.start('up')}
           onMouseUp={handlers.end('up')}
           onMouseLeave={handlers.end('up')}
-          size="lg"
+          size="2xl"
           rounded="2xl"
           bg="blackAlpha.500"
           color="white"
@@ -117,7 +117,7 @@ export default function MobileTouchpadChakra() {
           onMouseDown={handlers.start('left')}
           onMouseUp={handlers.end('left')}
           onMouseLeave={handlers.end('left')}
-          size="lg"
+          size="2xl"
           rounded="2xl"
           bg="blackAlpha.500"
           color="white"
@@ -142,7 +142,7 @@ export default function MobileTouchpadChakra() {
           onMouseDown={handlers.start('down')}
           onMouseUp={handlers.end('down')}
           onMouseLeave={handlers.end('down')}
-          size="lg"
+          size="2xl"
           rounded="2xl"
           bg="blackAlpha.500"
           color="white"
@@ -167,7 +167,7 @@ export default function MobileTouchpadChakra() {
           onMouseDown={handlers.start('right')}
           onMouseUp={handlers.end('right')}
           onMouseLeave={handlers.end('right')}
-          size="lg"
+          size="2xl"
           rounded="2xl"
           bg="blackAlpha.500"
           color="white"
