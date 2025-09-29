@@ -95,7 +95,8 @@ export const PacmanGame = () => {
         display: 'grid',
         placeItems: 'center',
         overflow: 'hidden',
-        position: 'relative',
+        position: 'absolute',
+        top: '10px'
       }}
     >
       <HStack
