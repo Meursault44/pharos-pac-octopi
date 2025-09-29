@@ -7,7 +7,7 @@ import MobileTouchpadChakra from '@/components/MobileTouchpadChakra';
 export const App = () => {
   return (
     <HStack
-      h={'100vh'}
+      h={'100svh'}
       bg={
         'linear-gradient(135deg, rgb(245, 242, 237) 0%, rgb(232, 234, 246) 30%, rgb(227, 242, 253) 60%, rgb(187, 222, 251) 100%)'
       }
