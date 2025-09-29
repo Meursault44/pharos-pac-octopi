@@ -1,20 +1,20 @@
-import { create } from "zustand";
-import { MAP_COLS, MAP_ROWS } from "./mapData";
+import { create } from 'zustand';
+import { MAP_COLS, MAP_ROWS } from './mapData';
 
 // === БАЗОВЫЕ ЗНАЧЕНИЯ ===
 // Эти значения заданы для базового размера клетки 60px
 const BASE_TILE = 60;
 const BASE_PACMAN_SPEED = 2.8; // px/tick
-const BASE_SHARK_SPEED = 2.8;  // px/tick
-const BASE_HITBOX = 46;        // px
+const BASE_SHARK_SPEED = 2.8; // px/tick
+const BASE_HITBOX = 46; // px
 const BASE_DISPLACEMENT_SCALE = 30;
 
 export type ConfigState = {
   // === Текущие параметры ===
-  tileSize: number;          // ширина клетки (px)
-  pacmanSpeed: number;       // скорость пакмана
-  sharkSpeed: number;        // скорость акул
-  pacmanHitbox: number;      // размер хитбокса пакмана
+  tileSize: number; // ширина клетки (px)
+  pacmanSpeed: number; // скорость пакмана
+  sharkSpeed: number; // скорость акул
+  pacmanHitbox: number; // размер хитбокса пакмана
   displacementScale: number; // сила эффекта воды
 
   // === Методы ===
@@ -46,7 +46,7 @@ export const useConfig = create<ConfigState>()((set) => ({
     let tileSize = Math.min(byWidth, byHeight);
 
     // Подрезаем, чтобы клетка не была слишком маленькой или огромной
-    tileSize = Math.max(20, Math.min(90, tileSize));
+    tileSize = Math.max(16, Math.min(90, tileSize));
 
     // Масштаб для связанных параметров
     const scale = tileSize / BASE_TILE;
@@ -54,7 +54,7 @@ export const useConfig = create<ConfigState>()((set) => ({
     set({
       tileSize,
       pacmanSpeed: BASE_PACMAN_SPEED * scale,
-      sharkSpeed: BASE_SHARK_SPEED * scale,
+      sharkSpeed: Math.ceil(BASE_SHARK_SPEED * scale * 10) / 10,
       pacmanHitbox: Math.round(BASE_HITBOX * scale),
       displacementScale: BASE_DISPLACEMENT_SCALE * scale,
     });

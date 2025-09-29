@@ -148,9 +148,6 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const { tileSize, sharkSpeed } = useConfig.getState();
 
-    // допускаем "почти центр" и снапаем
-    const CENTER_EPS = Math.max(1, Math.floor(sharkSpeed / 2));
-
     const next = sharks.map((s) => {
       let { x, y, dir } = s;
 
@@ -160,11 +157,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       const cx = cc * tileSize;
       const cy = rr * tileSize;
 
-      // в центре ли клетки с учетом ε
-      const nearCenter = Math.abs(x - cx) <= CENTER_EPS && Math.abs(y - cy) <= CENTER_EPS;
+      const CENTER_EPS = Math.min(0.49, sharkSpeed * 0.45); // всегда < шага и < 0.5
+      const nearCenter = Math.abs(x - cx) < CENTER_EPS && Math.abs(y - cy) < CENTER_EPS;
 
       if (nearCenter) {
-        // снап к точному центру, чтобы не накапливать ошибку
         x = cx;
         y = cy;
 

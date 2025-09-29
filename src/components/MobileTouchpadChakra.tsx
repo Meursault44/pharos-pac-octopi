@@ -85,14 +85,14 @@ export default function MobileTouchpadChakra() {
         <IconButton
           aria-label="Up"
           gridArea="up"
-          icon={<span>↑</span>}
           onTouchStart={handlers.start('up')}
           onTouchEnd={handlers.end('up')}
           onTouchCancel={handlers.end('up')}
           onMouseDown={handlers.start('up')}
           onMouseUp={handlers.end('up')}
           onMouseLeave={handlers.end('up')}
-          size="2xl"
+          width={'80px'}
+          height={'80px'}
           rounded="2xl"
           bg="blackAlpha.500"
           color="white"
@@ -110,14 +110,14 @@ export default function MobileTouchpadChakra() {
         <IconButton
           aria-label="Left"
           gridArea="left"
-          icon={<span>←</span>}
           onTouchStart={handlers.start('left')}
           onTouchEnd={handlers.end('left')}
           onTouchCancel={handlers.end('left')}
           onMouseDown={handlers.start('left')}
           onMouseUp={handlers.end('left')}
           onMouseLeave={handlers.end('left')}
-          size="2xl"
+          width={'80px'}
+          height={'80px'}
           rounded="2xl"
           bg="blackAlpha.500"
           color="white"
@@ -135,14 +135,14 @@ export default function MobileTouchpadChakra() {
         <IconButton
           aria-label="Down"
           gridArea="down"
-          icon={<span>↓</span>}
           onTouchStart={handlers.start('down')}
           onTouchEnd={handlers.end('down')}
           onTouchCancel={handlers.end('down')}
           onMouseDown={handlers.start('down')}
           onMouseUp={handlers.end('down')}
           onMouseLeave={handlers.end('down')}
-          size="2xl"
+          width={'80px'}
+          height={'80px'}
           rounded="2xl"
           bg="blackAlpha.500"
           color="white"
@@ -157,17 +157,17 @@ export default function MobileTouchpadChakra() {
             backdropFilter: 'blur(6px)',
           }}
         />
-        <IconButton
+        <Box
           aria-label="Right"
           gridArea="right"
-          icon={<span>→</span>}
           onTouchStart={handlers.start('right')}
           onTouchEnd={handlers.end('right')}
           onTouchCancel={handlers.end('right')}
           onMouseDown={handlers.start('right')}
           onMouseUp={handlers.end('right')}
           onMouseLeave={handlers.end('right')}
-          size="2xl"
+          width={'80px'}
+          height={'80px'}
           rounded="2xl"
           bg="blackAlpha.500"
           color="white"
