@@ -60,7 +60,7 @@ export const PacmanGame = () => {
   useLayoutEffect(() => {
     const update = () => {
       const vw = window.innerWidth;
-      const vh = window.innerHeight;
+      const vh = window.innerHeight - 20;
       let width, height;
 
       if (vw / vh > aspect) {
@@ -91,7 +91,7 @@ export const PacmanGame = () => {
     <div
       style={{
         width: '100vw',
-        height: '100dvh',
+        height: '100vh',
         display: 'grid',
         placeItems: 'center',
         overflow: 'hidden',
