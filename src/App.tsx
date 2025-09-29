@@ -12,6 +12,7 @@ export const App = () => {
         'linear-gradient(135deg, rgb(245, 242, 237) 0%, rgb(232, 234, 246) 30%, rgb(227, 242, 253) 60%, rgb(187, 222, 251) 100%)'
       }
       justifyContent={'center'}
+      alignItems={'center'}
     >
       <PacmanGame />
       <OrientationGateChakra />
