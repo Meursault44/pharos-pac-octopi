@@ -5,7 +5,6 @@ const config = defineConfig({
   globalCss: {
     'html, body': {
       fontFamily: "'Open Sans', system-ui, sans-serif",
-      overflow: 'hidden',
       height: '100%',
       margin: 0,
       padding: 0,

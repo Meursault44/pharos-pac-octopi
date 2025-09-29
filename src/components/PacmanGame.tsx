@@ -95,7 +95,7 @@ export const PacmanGame = () => {
         display: 'grid',
         placeItems: 'center',
         overflow: 'hidden',
-        position: 'absolute',
+        position: 'fixed',
         top: '10px'
       }}
     >
