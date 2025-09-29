@@ -8,12 +8,13 @@ import {
   TilingSprite,
   DisplacementFilter,
   AnimatedSprite,
+  Text as PixiText, // <- импортируем класс Text (для extend)
 } from 'pixi.js';
 import { Background } from './Sprites/Background';
 import { WaterOverlay } from './Sprites/WaterOverlay';
 import { Map } from './Sprites/Map';
 import { Pacman } from './Sprites/Pacman';
-import { Button } from '@chakra-ui/react';
+import { Button, HStack } from '@chakra-ui/react'; // <-- убрал Chakra Text, чтобы не путать
 import { DisplacedContainer } from './DisplacedContainer';
 import { SharkAI } from './SharkAI';
 import { MAP_COLS, MAP_ROWS } from '@/game/mapData';
@@ -21,12 +22,22 @@ import { useConfig } from '@/game/configStore';
 import { useGameStore } from '@/game/gameStore';
 import { useDialogsStore } from '@/store/dialogs';
 
-extend({ Container, Graphics, Sprite, TilingSprite, DisplacementFilter, AnimatedSprite });
+// регистрируем Pixi-компоненты, чтобы можно было использовать <pixiText/>
+extend({
+  Container,
+  Graphics,
+  Sprite,
+  TilingSprite,
+  DisplacementFilter,
+  AnimatedSprite,
+  Text: PixiText,
+});
 
 export const PacmanGame = () => {
   const holderRef = useRef<HTMLDivElement | null>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
+  const score = useGameStore((s) => s.score);
   const tileSize = useConfig((s) => s.tileSize);
   const displacementScale = useConfig((s) => s.displacementScale);
   const setByCanvasSize = useConfig((s) => s.setByCanvasSize);
@@ -46,20 +57,16 @@ export const PacmanGame = () => {
     initFromLayout();
   }, [initFromLayout]);
 
-  // наблюдаем за экраном и вписываем канвас в окно
   useLayoutEffect(() => {
     const update = () => {
       const vw = window.innerWidth;
-      const vh = window.innerHeight - 56; // отнимаем ~3rem под UI
+      const vh = window.innerHeight - 20;
       let width, height;
 
-      // вписываем карту целиком в экран, сохраняя пропорции
       if (vw / vh > aspect) {
-        // экран шире — ограничиваем по высоте
         height = vh;
         width = vh * aspect;
       } else {
-        // экран уже — ограничиваем по ширине
         width = vw;
         height = vw / aspect;
       }
@@ -77,19 +84,21 @@ export const PacmanGame = () => {
     };
   }, [aspect, setByCanvasSize]);
 
+  const hudWidth = Math.ceil(tileSize * (String(score).length / 2 + 2.6)); // ширина таблички — несколько клеток стены
+  const hudHeight = tileSize - tileSize / 5;
+
   return (
     <div
       style={{
         width: '100vw',
         height: '100dvh',
-        marginBottom: '1rem',
         display: 'grid',
         placeItems: 'center',
         overflow: 'hidden',
         position: 'relative',
       }}
     >
-      <div
+      <HStack
         ref={holderRef}
         style={{
           width: `${containerSize.width}px`,
@@ -98,6 +107,7 @@ export const PacmanGame = () => {
         }}
       >
         <Application antialias resizeTo={holderRef}>
+          {/* СЦЕНА С ЭФФЕКТОМ */}
           <DisplacedContainer scale={displacementScale}>
             <Background />
             <Map />
@@ -105,6 +115,33 @@ export const PacmanGame = () => {
             <SharkAI />
             <WaterOverlay />
           </DisplacedContainer>
+
+          {/* HUD — поверх, без воды */}
+          <pixiContainer sortableChildren={true}>
+            <pixiGraphics
+              // тёмный фон слева сверху
+              draw={(graphics) => {
+                graphics.clear();
+                graphics.setFillStyle({ color: '#231F20' });
+                graphics
+                  .roundRect(tileSize / 10, tileSize / 10, hudWidth, hudHeight, 20)
+                  .stroke({ width: tileSize / 5, color: 'gray' });
+                graphics.fill();
+              }}
+            />
+            <pixiText
+              x={Math.round(tileSize * 0.35)}
+              y={Math.round(tileSize * 0.1)}
+              text={`Score: ${score}`}
+              anchor={{ x: 0, y: 0 }}
+              style={{
+                fill: 0xffffff,
+                fontSize: Math.floor(tileSize * 0.7), // визуально ~высота клетки
+                fontFamily: 'Open Sans, system-ui, sans-serif',
+                fontWeight: '700',
+              }}
+            />
+          </pixiContainer>
         </Application>
 
         {!isRunning && (
@@ -130,7 +167,7 @@ export const PacmanGame = () => {
             </Button>
           </div>
         )}
-      </div>
+      </HStack>
     </div>
   );
 };
