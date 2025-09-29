@@ -91,7 +91,7 @@ export const PacmanGame = () => {
     <div
       style={{
         width: '100vw',
-        height: '100vh',
+        height: '100svh',
         display: 'grid',
         placeItems: 'center',
         overflow: 'hidden',
