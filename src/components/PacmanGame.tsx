@@ -60,7 +60,7 @@ export const PacmanGame = () => {
   useLayoutEffect(() => {
     const update = () => {
       const vw = window.innerWidth;
-      const vh = window.innerHeight - 20;
+      const vh = window.innerHeight;
       let width, height;
 
       if (vw / vh > aspect) {
