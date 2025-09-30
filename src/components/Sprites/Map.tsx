@@ -80,7 +80,7 @@ export const Map = ({
       }
     }
     return w;
-  }, [x, y]);
+  }, [x, y, TILE_SIZE]);
 
   const pellets = useGameStore((s) => s.pellets);
   const sharks = useGameStore((s) => s.sharks);

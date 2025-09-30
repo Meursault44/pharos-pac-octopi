@@ -55,7 +55,7 @@ export const PacmanGame = () => {
 
   useEffect(() => {
     initFromLayout();
-  }, [initFromLayout]);
+  }, [initFromLayout, tileSize]);
 
   useLayoutEffect(() => {
     const update = () => {
