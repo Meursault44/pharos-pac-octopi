@@ -6,7 +6,7 @@ import { MAP_COLS, MAP_ROWS } from './mapData';
 const BASE_TILE = 60;
 const BASE_PACMAN_SPEED = 2.8; // px/tick
 const BASE_SHARK_SPEED = 2.8; // px/tick
-const BASE_HITBOX = 60; // px (по умолчанию = ширине прохода)
+const BASE_HITBOX = 58; // px (по умолчанию = ширине прохода)
 const BASE_DISPLACEMENT_SCALE = 30;
 
 export type ConfigState = {
