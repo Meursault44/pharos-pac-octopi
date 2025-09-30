@@ -51,7 +51,10 @@ export const PacmanGame = () => {
   const aspect = MAP_COLS / MAP_ROWS;
 
   const setDialogStartGameHandler = useCallback(
-    () => setDialogStartGame(true),
+    (e) => {
+      e.preventDefault();
+      setDialogStartGame(true)
+    },
     [setDialogStartGame],
   );
 
@@ -89,13 +92,16 @@ export const PacmanGame = () => {
   const hudWidth = Math.ceil(tileSize * (String(score).length / 2 + 2.6)); // ширина таблички — несколько клеток стены
   const hudHeight = tileSize - tileSize / 5;
 
+  const isMobileDevice = isMobile();
+  const landscape = isLandscape();
+
   return (
     <div
       style={{
         width: '100vw',
         height: '100svh',
         display: 'grid',
-        placeItems: isMobile() && isLandscape() ? 'center end' : 'center',
+        placeItems: isMobileDevice && landscape ? 'center end' : 'center',
         overflow: 'hidden',
         position: 'relative',
         margin: '0 20px',
