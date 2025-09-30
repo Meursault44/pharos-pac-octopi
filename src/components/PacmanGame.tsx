@@ -21,6 +21,8 @@ import { MAP_COLS, MAP_ROWS } from '@/game/mapData';
 import { useConfig } from '@/game/configStore';
 import { useGameStore } from '@/game/gameStore';
 import { useDialogsStore } from '@/store/dialogs';
+import { isMobile } from '@/helpers/isMobile.ts';
+import { isLandscape } from '@/helpers/getOrientation.ts';
 
 // регистрируем Pixi-компоненты, чтобы можно было использовать <pixiText/>
 extend({
@@ -93,9 +95,10 @@ export const PacmanGame = () => {
         width: '100vw',
         height: '100svh',
         display: 'grid',
-        placeItems: 'center',
+        placeItems: isMobile() && isLandscape() ? 'center end' : 'center',
         overflow: 'hidden',
         position: 'relative',
+        margin: '0 20px',
       }}
     >
       <HStack

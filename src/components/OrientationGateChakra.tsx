@@ -1,14 +1,7 @@
 import { Box, Card, Heading, Text } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
+import { isPortrait } from '@/helpers/getOrientation.ts';
 
-function isPortrait() {
-  if (window.screen?.orientation?.type)
-    return window.screen.orientation.type.startsWith('portrait');
-  return (
-    window.matchMedia?.('(orientation: portrait)')?.matches ??
-    window.innerHeight > window.innerWidth
-  );
-}
 function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }

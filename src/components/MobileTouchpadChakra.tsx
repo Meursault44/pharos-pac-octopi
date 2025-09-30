@@ -1,5 +1,7 @@
 import { Box, Grid, IconButton } from '@chakra-ui/react';
 import { useEffect, useMemo, useState } from 'react';
+import { isLandscape } from '@/helpers/getOrientation.ts';
+import { isMobile } from '@/helpers/isMobile.ts';
 
 type Dir = 'up' | 'left' | 'down' | 'right';
 
@@ -9,18 +11,6 @@ const KEY_BY_DIR: Record<Dir, { code: string; key: string }> = {
   down: { code: 'KeyS', key: 's' },
   right: { code: 'KeyD', key: 'd' },
 };
-
-function isLandscape() {
-  if (window.screen?.orientation?.type)
-    return window.screen.orientation.type.startsWith('landscape');
-  return (
-    window.matchMedia?.('(orientation: landscape)')?.matches ??
-    window.innerWidth > window.innerHeight
-  );
-}
-function isMobile() {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-}
 
 // шлём такие же события, какие ловит Pacman.tsx
 function fireKey(code: string, key: string, type: 'keydown' | 'keyup') {
