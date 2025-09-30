@@ -115,7 +115,12 @@ export const PacmanGame = () => {
           position: 'relative',
         }}
       >
-        <Application antialias resizeTo={holderRef}>
+        <Application antialias
+                     resizeTo={holderRef}
+                     resolution={window.devicePixelRatio || 1}
+                     autoDensity
+                     backgroundAlpha={0}
+        >
           {/* СЦЕНА С ЭФФЕКТОМ */}
           <DisplacedContainer scale={displacementScale}>
             <Background />
