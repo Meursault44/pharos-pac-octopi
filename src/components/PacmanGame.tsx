@@ -119,7 +119,6 @@ export const PacmanGame = () => {
                      resizeTo={holderRef}
                      resolution={window.devicePixelRatio || 1}
                      autoDensity
-                     backgroundAlpha={0}
         >
           {/* СЦЕНА С ЭФФЕКТОМ */}
           <DisplacedContainer scale={displacementScale}>
