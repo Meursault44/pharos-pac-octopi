@@ -6,7 +6,7 @@ import { MAP_COLS, MAP_ROWS } from './mapData';
 const BASE_TILE = 60;
 const BASE_PACMAN_SPEED = 2.8; // px/tick
 const BASE_SHARK_SPEED = 2.8; // px/tick
-const BASE_HITBOX = 46; // px
+const BASE_HITBOX = 60; // px (по умолчанию = ширине прохода)
 const BASE_DISPLACEMENT_SCALE = 30;
 
 export type ConfigState = {
@@ -14,7 +14,7 @@ export type ConfigState = {
   tileSize: number; // ширина клетки (px)
   pacmanSpeed: number; // скорость пакмана
   sharkSpeed: number; // скорость акул
-  pacmanHitbox: number; // размер хитбокса пакмана
+  pacmanHitbox: number; // размер хитбокса пакмана (визуальный/базовый)
   displacementScale: number; // сила эффекта воды
 
   // === Методы ===
@@ -34,18 +34,18 @@ export const useConfig = create<ConfigState>()((set) => ({
   displacementScale: BASE_DISPLACEMENT_SCALE,
 
   /**
-   * Вычисляет tileSize так, чтобы карта 27x14 клеток
+   * Вычисляет tileSize так, чтобы карта MAP_COLS x MAP_ROWS
    * полностью помещалась в доступный прямоугольник (canvas).
    */
   setByCanvasSize: (canvasWidthPx: number, canvasHeightPx: number) => {
-    // Определяем возможный размер клетки по ширине и высоте
+    // Размер клетки по ширине/высоте
     const byWidth = Math.floor(canvasWidthPx / MAP_COLS);
     const byHeight = Math.floor(canvasHeightPx / MAP_ROWS);
 
     // Берём минимальное, чтобы гарантированно всё влезло
     let tileSize = Math.min(byWidth, byHeight);
 
-    // Подрезаем, чтобы клетка не была слишком маленькой или огромной
+    // Ограничения адекватных размеров
     tileSize = Math.max(16, Math.min(90, tileSize));
 
     // Масштаб для связанных параметров
@@ -54,7 +54,9 @@ export const useConfig = create<ConfigState>()((set) => ({
     set({
       tileSize,
       pacmanSpeed: BASE_PACMAN_SPEED * scale,
+      // округляем скорость акулы до 0.1 для стабильности
       sharkSpeed: Math.ceil(BASE_SHARK_SPEED * scale * 10) / 10,
+      // хитбокс визуально масштабируем пропорционально
       pacmanHitbox: Math.round(BASE_HITBOX * scale),
       displacementScale: BASE_DISPLACEMENT_SCALE * scale,
     });

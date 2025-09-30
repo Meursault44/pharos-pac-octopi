@@ -1,4 +1,3 @@
-// Pacman.tsx
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Assets, Texture } from 'pixi.js';
 import { useTick } from '@pixi/react';
@@ -22,6 +21,12 @@ const keyMap: Record<string, Dir | 'space' | undefined> = {
   ArrowRight: 'right',
 };
 
+const isOpposite = (a: Dir, b: Dir) =>
+  (a === 'up' && b === 'down') ||
+  (a === 'down' && b === 'up') ||
+  (a === 'left' && b === 'right') ||
+  (a === 'right' && b === 'left');
+
 export const Pacman = () => {
   const TILE_SIZE = useConfig((s) => s.tileSize);
   const PACMAN_SPEED = useConfig((s) => s.pacmanSpeed);
@@ -29,6 +34,12 @@ export const Pacman = () => {
 
   const SPRITE_SIZE = TILE_SIZE;
   const HITBOX_PAD = (SPRITE_SIZE - PACMAN_HITBOX) / 2;
+
+  // Небольшой отступ только для вычислений коллизий (визуально не влияет).
+  const COLLISION_MARGIN = Math.max(1, Math.floor(TILE_SIZE * 0.05)); // ~5% тайла
+
+  // Допуск при повороте: как далеко от центра мы разрешим поворот
+  const TURN_TOL = Math.min(TILE_SIZE * 0.25, PACMAN_SPEED * 2);
 
   const pacman = useGameStore((s) => s.pacman);
   const setPacmanPos = useGameStore((s) => s.setPacmanPos);
@@ -42,34 +53,50 @@ export const Pacman = () => {
 
   const { setDialogLoseGame } = useDialogsStore();
 
-  const [pressed, setPressed] = useState<Dir[]>([]);
+  // Кадры спрайта
   const [frames, setFrames] = useState<Texture[] | null>(null);
+  // Флаг завершения
   const [shouldEndGame, setShouldEndGame] = useState(false);
+  // Заготовленный поворот (одно направление максимум)
+  const queuedDirRef = useRef<Dir | null>(null);
 
+  // Актуальная позиция/направление
   const posRef = useRef(pacman);
   useEffect(() => {
     posRef.current = pacman;
   }, [pacman]);
 
+  // --- Управление клавишами: одно нажатие фиксирует направление/заготовку
   const keyDownHandler = useCallback(
     (e: KeyboardEvent) => {
-      const dir = keyMap[e.code];
-      if (!dir || gameOver) return;
+      const d = keyMap[e.code];
+      if (!d || gameOver) return;
 
-      if (dir === 'space') {
+      if (d === 'space') {
         if (!isRunning) startGame();
         return;
       }
-      setPressed((prev) => (prev.includes(dir) ? prev : [...prev, dir]));
+
+      const curr = posRef.current.dir as Dir;
+
+      // Противоположное — мгновенный разворот и сброс заготовок
+      if (isOpposite(d, curr)) {
+        queuedDirRef.current = null;
+        setPacmanDir(d);
+        return;
+      }
+
+      // То же направление — ничего не делаем
+      if (d === curr) return;
+
+      // Иначе — сохранить единственную заготовку (заменяя предыдущую)
+      queuedDirRef.current = d;
     },
-    [gameOver, isRunning, startGame],
+    [gameOver, isRunning, startGame, setPacmanDir],
   );
 
-  const keyUpHandler = useCallback((e: KeyboardEvent) => {
-    const dir = keyMap[e.code];
-    if (!dir || dir === 'space') return;
-    setPressed((prev) => prev.filter((d) => d !== dir));
-  }, []);
+  // keyup больше не нужен, но оставим пустой для чистоты
+  const keyUpHandler = useCallback(() => {}, []);
 
   useEffect(() => {
     window.addEventListener('keydown', keyDownHandler);
@@ -80,12 +107,36 @@ export const Pacman = () => {
     };
   }, [keyDownHandler, keyUpHandler]);
 
+  // === Вспомогательные функции центрирования/допусков ===
+  const getColCenterX = (x: number) => {
+    const centerX = x + SPRITE_SIZE / 2;
+    const col = Math.floor(centerX / TILE_SIZE);
+    return col * TILE_SIZE + TILE_SIZE / 2;
+  };
+
+  const getRowCenterY = (y: number) => {
+    const centerY = y + SPRITE_SIZE / 2;
+    const row = Math.floor(centerY / TILE_SIZE);
+    return row * TILE_SIZE + TILE_SIZE / 2;
+  };
+
+  const isAlignedForTurn = (x: number, y: number, turn: Dir) => {
+    const centerX = x + SPRITE_SIZE / 2;
+    const centerY = y + SPRITE_SIZE / 2;
+    if (turn === 'up' || turn === 'down') {
+      return Math.abs(centerX - getColCenterX(x)) <= TURN_TOL;
+    } else {
+      return Math.abs(centerY - getRowCenterY(y)) <= TURN_TOL;
+    }
+  };
+
+  // --- Коллизия с акулами (учитываем внутренний отступ)
   const checkSharkCollision = useCallback(
     (x: number, y: number) => {
-      const hbX = x + HITBOX_PAD;
-      const hbY = y + HITBOX_PAD;
-      const hbR = hbX + PACMAN_HITBOX;
-      const hbB = hbY + PACMAN_HITBOX;
+      const hbX = x + HITBOX_PAD + COLLISION_MARGIN;
+      const hbY = y + HITBOX_PAD + COLLISION_MARGIN;
+      const hbR = hbX + (PACMAN_HITBOX - 2 * COLLISION_MARGIN);
+      const hbB = hbY + (PACMAN_HITBOX - 2 * COLLISION_MARGIN);
 
       for (const sh of sharks) {
         const sx = sh.x,
@@ -96,9 +147,10 @@ export const Pacman = () => {
       }
       return false;
     },
-    [sharks, HITBOX_PAD, PACMAN_HITBOX, TILE_SIZE],
+    [sharks, HITBOX_PAD, PACMAN_HITBOX, TILE_SIZE, COLLISION_MARGIN],
   );
 
+  // --- Проверка шага (с «мягким» хитбоксом)
   const canStep = useCallback(
     (x: number, y: number, dir: Dir) => {
       let nx = x,
@@ -108,10 +160,10 @@ export const Pacman = () => {
       else if (dir === 'left') nx -= PACMAN_SPEED;
       else nx += PACMAN_SPEED;
 
-      const hbX = nx + HITBOX_PAD;
-      const hbY = ny + HITBOX_PAD;
-      const hbRight = hbX + PACMAN_HITBOX;
-      const hbBottom = hbY + PACMAN_HITBOX;
+      const hbX = nx + HITBOX_PAD + COLLISION_MARGIN;
+      const hbY = ny + HITBOX_PAD + COLLISION_MARGIN;
+      const hbRight = hbX + (PACMAN_HITBOX - 2 * COLLISION_MARGIN);
+      const hbBottom = hbY + (PACMAN_HITBOX - 2 * COLLISION_MARGIN);
 
       if (hbX < 0 || hbY < 0 || hbRight > MAP_COLS * TILE_SIZE || hbBottom > MAP_ROWS * TILE_SIZE)
         return null;
@@ -128,41 +180,95 @@ export const Pacman = () => {
       }
       return { x: nx, y: ny };
     },
-    [PACMAN_SPEED, HITBOX_PAD, PACMAN_HITBOX, TILE_SIZE],
+    [PACMAN_SPEED, HITBOX_PAD, PACMAN_HITBOX, TILE_SIZE, COLLISION_MARGIN],
   );
 
+  // --- Анимация и движение: всегда плывём
   const animate = useCallback(() => {
-    if (gameOver || !isRunning || pressed.length === 0) return;
+    if (gameOver || !isRunning) return;
 
-    const { x, y } = posRef.current;
+    let { x, y, dir } = posRef.current;
 
-    let chosenDir: Dir | null = null;
-    let nextPos: { x: number; y: number } | null = null;
+    // Пробуем выполнить заготовленный поворот, если он возможен из текущей клетки
+    let activeDir: Dir = dir;
+    const q = queuedDirRef.current;
 
-    for (let i = pressed.length - 1; i >= 0; i--) {
-      const d = pressed[i];
-      const np = canStep(x, y, d);
-      if (np) {
-        chosenDir = d;
-        nextPos = np;
-        break;
+    if (q && isAlignedForTurn(x, y, q)) {
+      // Снап к центру по перпендикулярной оси ПЕРЕД ходом
+      let sx = x,
+        sy = y;
+      if (q === 'up' || q === 'down') {
+        const targetCX = getColCenterX(x);
+        const currCX = x + SPRITE_SIZE / 2;
+        const dx = targetCX - currCX;
+        if (Math.abs(dx) > 0) {
+          const shift = Math.sign(dx) * Math.min(Math.abs(dx), PACMAN_SPEED);
+          sx += shift;
+        }
+      } else {
+        const targetCY = getRowCenterY(y);
+        const currCY = y + SPRITE_SIZE / 2;
+        const dy = targetCY - currCY;
+        if (Math.abs(dy) > 0) {
+          const shift = Math.sign(dy) * Math.min(Math.abs(dy), PACMAN_SPEED);
+          sy += shift;
+        }
+      }
+
+      // Пробуем шаг уже из «почти выровненной» позиции
+      const tryTurn = canStep(sx, sy, q);
+      if (tryTurn) {
+        // Жёстко прищёлкнем перпендикулярную ось к центру
+        if (q === 'up' || q === 'down') {
+          const cx = getColCenterX(tryTurn.x);
+          const currCX = tryTurn.x + SPRITE_SIZE / 2;
+          tryTurn.x += cx - currCX; // центр по X
+        } else {
+          const cy = getRowCenterY(tryTurn.y);
+          const currCY = tryTurn.y + SPRITE_SIZE / 2;
+          tryTurn.y += cy - currCY; // центр по Y
+        }
+
+        activeDir = q;
+        queuedDirRef.current = null;
+        setPacmanDir(activeDir);
+        // Сразу обновим локальную позицию — чтобы следующий блок шёл корректно
+        x = tryTurn.x;
+        y = tryTurn.y;
+        posRef.current = { ...tryTurn, dir: activeDir };
       }
     }
 
-    if (!nextPos || !chosenDir) return;
+    // Двигаемся по активному направлению
+    const step = canStep(x, y, activeDir);
+    if (!step) {
+      // Уперлись в стену: ждём допустимый поворот
+      return;
+    }
 
-    if (checkSharkCollision(nextPos.x, nextPos.y)) {
+    if (checkSharkCollision(step.x, step.y)) {
       setShouldEndGame(true);
       return;
     }
 
-    setPacmanPos(nextPos.x, nextPos.y);
-    setPacmanDir(chosenDir);
-    posRef.current = { ...nextPos, dir: chosenDir };
-  }, [pressed, gameOver, isRunning, canStep, checkSharkCollision, setPacmanPos, setPacmanDir]);
+    setPacmanPos(step.x, step.y);
+    posRef.current = { ...step, dir: activeDir };
+  }, [
+    gameOver,
+    isRunning,
+    canStep,
+    checkSharkCollision,
+    setPacmanPos,
+    setPacmanDir,
+    TURN_TOL,
+    TILE_SIZE,
+    PACMAN_SPEED,
+    SPRITE_SIZE,
+  ]);
 
   useTick(animate);
 
+  // --- Загрузка кадров
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -196,6 +302,7 @@ export const Pacman = () => {
     };
   }, []);
 
+  // --- Еда + проверка акул по позиции
   const lastCellRef = useRef<string>('');
   useEffect(() => {
     if (gameOver) return;
@@ -216,6 +323,7 @@ export const Pacman = () => {
     }
   }, [pacman.x, pacman.y, consume, gameOver, checkSharkCollision, TILE_SIZE, SPRITE_SIZE]);
 
+  // --- Завершение игры
   useEffect(() => {
     if (!shouldEndGame) return;
     endGame();
@@ -225,9 +333,9 @@ export const Pacman = () => {
 
   if (!frames || frames.length === 0) return null;
 
-  const rotation = !pressed.length
-    ? 0
-    : pacman.dir === 'right'
+  // Вращение и скорость анимации теперь не зависят от зажатых клавиш
+  const rotation =
+    pacman.dir === 'right'
       ? Math.PI / 2
       : pacman.dir === 'down'
         ? Math.PI
@@ -244,7 +352,7 @@ export const Pacman = () => {
       x={renderX}
       y={renderY}
       size={SPRITE_SIZE}
-      speed={pressed.length ? 2 : 0.6}
+      speed={isRunning ? 2 : 0.6} // всегда «плывём» в игре
       rotation={rotation}
     />
   );

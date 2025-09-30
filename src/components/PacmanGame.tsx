@@ -53,7 +53,7 @@ export const PacmanGame = () => {
   const setDialogStartGameHandler = useCallback(
     (e) => {
       e.preventDefault();
-      setDialogStartGame(true)
+      setDialogStartGame(true);
     },
     [setDialogStartGame],
   );
@@ -115,10 +115,11 @@ export const PacmanGame = () => {
           position: 'relative',
         }}
       >
-        <Application antialias
-                     resizeTo={holderRef}
-                     resolution={window.devicePixelRatio || 1}
-                     autoDensity
+        <Application
+          antialias
+          resizeTo={holderRef}
+          resolution={window.devicePixelRatio || 1}
+          autoDensity
         >
           {/* СЦЕНА С ЭФФЕКТОМ */}
           <DisplacedContainer scale={displacementScale}>
