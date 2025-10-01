@@ -14,7 +14,7 @@ export type ConfigState = {
   pacmanSpeed: number;
   sharkSpeed: number;
   pacmanHitbox: number;
-  sharkHitbox: number;        // <-- добавь
+  sharkHitbox: number; // <-- добавь
   displacementScale: number;
   setByCanvasSize: (canvasWidthPx: number, canvasHeightPx: number) => void;
 };

@@ -2,7 +2,6 @@ import { PacmanGame } from './components/PacmanGame.tsx';
 import { HStack } from '@chakra-ui/react';
 import { DialogLoseGame, DialogStartGame, DialogWinGame } from '@/components/Dialogs';
 import OrientationGateChakra from '@/components/OrientationGateChakra';
-import MobileTouchpadChakra from '@/components/MobileTouchpadChakra';
 
 export const App = () => {
   return (
@@ -16,7 +15,6 @@ export const App = () => {
     >
       <PacmanGame />
       <OrientationGateChakra />
-      <MobileTouchpadChakra />
       <DialogLoseGame />
       <DialogStartGame />
       <DialogWinGame />

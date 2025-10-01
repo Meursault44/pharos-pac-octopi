@@ -28,11 +28,14 @@ const isOpposite = (a: Dir, b: Dir) =>
   (a === 'left' && b === 'right') ||
   (a === 'right' && b === 'left');
 
+// --- Настройки свайпа
+const SWIPE_MIN_PX = 24; // минимальная длина свайпа
+const SWIPE_TIME_MS = 600; // максимальная длительность свайпа
+
 export const Pacman = () => {
   const TILE_SIZE = useConfig((s) => s.tileSize);
   const PACMAN_SPEED = useConfig((s) => s.pacmanSpeed);
   const PACMAN_HITBOX = useConfig((s) => s.pacmanHitbox);
-  const SHARK_HITBOX = useConfig((s) => s.sharkHitbox);
 
   const SPRITE_SIZE = TILE_SIZE;
   const HITBOX_PAD = (SPRITE_SIZE - PACMAN_HITBOX) / 2;
@@ -62,7 +65,24 @@ export const Pacman = () => {
     posRef.current = pacman;
   }, [pacman]);
 
-  // --- Управление клавишами: одно нажатие фиксирует направление/заготовку
+  // --- Применение направления (общее для клавиш и свайпа)
+  const applyDirection = useCallback(
+    (d: Dir) => {
+      const curr = posRef.current.dir as Dir;
+      if (isOpposite(d, curr)) {
+        // Мгновенный разворот
+        queuedDirRef.current = null;
+        setPacmanDir(d);
+        return;
+      }
+      if (d === curr) return;
+      // Иначе — сохранить единственную заготовку (заменяя предыдущую)
+      queuedDirRef.current = d;
+    },
+    [setPacmanDir],
+  );
+
+  // --- Управление клавишами
   const keyDownHandler = useCallback(
     (e: KeyboardEvent) => {
       const d = keyMap[e.code];
@@ -72,25 +92,11 @@ export const Pacman = () => {
         if (!isRunning) startGame();
         return;
       }
-
-      const curr = posRef.current.dir as Dir;
-      // Противоположное — мгновенный разворот и сброс заготовок
-      if (isOpposite(d, curr)) {
-        queuedDirRef.current = null;
-        setPacmanDir(d);
-        return;
-      }
-
-      // То же направление — ничего не делаем
-      if (d === curr) return;
-
-      // Иначе — сохранить единственную заготовку (заменяя предыдущую)
-      queuedDirRef.current = d;
+      applyDirection(d);
     },
-    [gameOver, isRunning, startGame, setPacmanDir],
+    [gameOver, isRunning, startGame, applyDirection],
   );
 
-  // keyup больше не нужен, но оставим пустой для чистоты
   const keyUpHandler = useCallback(() => {}, []);
 
   useEffect(() => {
@@ -102,23 +108,90 @@ export const Pacman = () => {
     };
   }, [keyDownHandler, keyUpHandler]);
 
+  // --- Управление свайпами (тач)
+  const touchStartRef = useRef<{ x: number; y: number; t: number } | null>(null);
+
+  const handleTouchStart = useCallback(
+    (e: TouchEvent) => {
+      if (gameOver) return;
+      const t = e.touches[0];
+      if (!t) return;
+
+      touchStartRef.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+
+      // Первый тап — запуск игры (аналог пробела)
+      if (!isRunning) startGame();
+
+      // чтобы страница не скроллилась/зумалась
+      e.preventDefault();
+    },
+    [gameOver, isRunning, startGame],
+  );
+
+  const handleTouchEnd = useCallback(
+    (e: TouchEvent) => {
+      if (gameOver) return;
+      const st = touchStartRef.current;
+      touchStartRef.current = null;
+      if (!st) return;
+
+      const t = e.changedTouches[0];
+      if (!t) return;
+
+      const dt = Date.now() - st.t;
+      if (dt > SWIPE_TIME_MS) return; // слишком долгий жест — игнор
+
+      const dx = t.clientX - st.x;
+      const dy = t.clientY - st.y;
+      const adx = Math.abs(dx);
+      const ady = Math.abs(dy);
+
+      if (adx < SWIPE_MIN_PX && ady < SWIPE_MIN_PX) {
+        // короткий тап — уже запустили игру на touchstart (если нужно)
+        e.preventDefault();
+        return;
+      }
+
+      let d: Dir;
+      if (adx > ady) d = dx > 0 ? 'right' : 'left';
+      else d = dy > 0 ? 'down' : 'up';
+
+      applyDirection(d);
+      e.preventDefault();
+    },
+    [applyDirection, gameOver],
+  );
+
+  useEffect(() => {
+    // Вешаем на window, чтобы накрыть всю область
+    // ВАЖНО: passive: false — чтобы работал preventDefault()
+    window.addEventListener('touchstart', handleTouchStart as EventListener, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd as EventListener, { passive: false });
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart as EventListener);
+      window.removeEventListener('touchend', handleTouchEnd as EventListener);
+    };
+  }, [handleTouchStart, handleTouchEnd]);
+
   // --- Коллизия с акулами
-    const checkSharkCollision = useCallback((x: number, y: number) => {
-        const pcx = x + SPRITE_SIZE / 2;
-        const pcy = y + SPRITE_SIZE / 2;
-        const pr  = PACMAN_HITBOX / 2;
+  const checkSharkCollision = useCallback(
+    (x: number, y: number) => {
+      const hbX = x + HITBOX_PAD;
+      const hbY = y + HITBOX_PAD;
+      const hbR = hbX + PACMAN_HITBOX;
+      const hbB = hbY + PACMAN_HITBOX;
 
-        for (const sh of sharks) {
-            const scx = sh.x + TILE_SIZE / 2;
-            const scy = sh.y + TILE_SIZE / 2;
-            const sr  = SHARK_HITBOX / 2;
-
-            const dx = pcx - scx;
-            const dy = pcy - scy;
-            if (dx * dx + dy * dy <= (pr + sr) * (pr + sr)) return true;
-        }
-        return false;
-    }, [sharks, SPRITE_SIZE, TILE_SIZE, PACMAN_HITBOX, SHARK_HITBOX]);
+      for (const sh of sharks) {
+        const sx = sh.x,
+          sy = sh.y;
+        const sr = sx + TILE_SIZE,
+          sb = sy + TILE_SIZE;
+        if (hbX < sr && hbR > sx && hbY < sb && hbB > sy) return true;
+      }
+      return false;
+    },
+    [sharks, HITBOX_PAD, PACMAN_HITBOX, TILE_SIZE],
+  );
 
   // --- Проверка шага
   const canStep = useCallback(

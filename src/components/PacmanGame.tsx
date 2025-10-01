@@ -21,8 +21,6 @@ import { MAP_COLS, MAP_ROWS } from '@/game/mapData';
 import { useConfig } from '@/game/configStore';
 import { useGameStore } from '@/game/gameStore';
 import { useDialogsStore } from '@/store/dialogs';
-import { isMobile } from '@/helpers/isMobile.ts';
-import { isLandscape } from '@/helpers/getOrientation.ts';
 
 // регистрируем Pixi-компоненты, чтобы можно было использовать <pixiText/>
 extend({
@@ -92,16 +90,13 @@ export const PacmanGame = () => {
   const hudWidth = Math.ceil(tileSize * (String(score).length / 2 + 2.6)); // ширина таблички — несколько клеток стены
   const hudHeight = tileSize - tileSize / 5;
 
-  const isMobileDevice = isMobile();
-  const landscape = isLandscape();
-
   return (
     <div
       style={{
         width: '100vw',
         height: '100svh',
         display: 'grid',
-        placeItems: isMobileDevice && landscape ? 'center end' : 'center',
+        placeItems: 'center',
         overflow: 'hidden',
         position: 'relative',
         margin: '0 20px',
