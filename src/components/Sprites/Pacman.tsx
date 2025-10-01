@@ -29,8 +29,8 @@ const isOpposite = (a: Dir, b: Dir) =>
   (a === 'right' && b === 'left');
 
 // --- Настройки свайпа
-const SWIPE_MIN_PX = 24; // минимальная длина свайпа
-const SWIPE_TIME_MS = 600; // максимальная длительность свайпа
+const SWIPE_MIN_PX = 24;
+const SWIPE_TIME_MS = 600;
 
 export const Pacman = () => {
   const TILE_SIZE = useConfig((s) => s.tileSize);
@@ -52,42 +52,57 @@ export const Pacman = () => {
 
   const { setDialogLoseGame } = useDialogsStore();
 
-  // Кадры спрайта
   const [frames, setFrames] = useState<Texture[] | null>(null);
-  // Флаг завершения
   const [shouldEndGame, setShouldEndGame] = useState(false);
-  // Заготовленный поворот (одно направление максимум)
   const queuedDirRef = useRef<Dir | null>(null);
 
-  // Актуальная позиция/направление
   const posRef = useRef(pacman);
   useEffect(() => {
     posRef.current = pacman;
   }, [pacman]);
 
-  // --- Применение направления (общее для клавиш и свайпа)
+  // --- Геометрические пороги
+  // поперечный допуск к центру коридора (узкий, чтобы не цеплять стенку)
+  const PERP_EPS = Math.min(TILE_SIZE * 0.35, Math.max(0.5, PACMAN_SPEED * 0.6));
+  // продольный допуск (шире, фактически не критичен благодаря "пересечению центра")
+  const LONG_EPS = Math.min(TILE_SIZE * 0.45, Math.max(0.5, PACMAN_SPEED * 1.2));
+
+  const cellCenter = (x: number, y: number) => {
+    const cc = Math.floor((x + TILE_SIZE / 2) / TILE_SIZE);
+    const rr = Math.floor((y + TILE_SIZE / 2) / TILE_SIZE);
+    return { cx: cc * TILE_SIZE, cy: rr * TILE_SIZE };
+  };
+
+  // --- Детектор: пройдём ли мы центр клетки за этот кадр по текущему направлению
+  const willCrossCenter = (x: number, y: number, dir: Dir, speed: number) => {
+    const { cx, cy } = cellCenter(x, y);
+    const nx = dir === 'left' ? x - speed : dir === 'right' ? x + speed : x;
+    const ny = dir === 'up' ? y - speed : dir === 'down' ? y + speed : y;
+    const crossX = (x - cx) * (nx - cx) <= 0; // поменяли знак или стали 0
+    const crossY = (y - cy) * (ny - cy) <= 0;
+    if (dir === 'left' || dir === 'right') return crossX;
+    return crossY;
+  };
+
+  // --- Управление/очередь разворота
   const applyDirection = useCallback(
     (d: Dir) => {
       const curr = posRef.current.dir as Dir;
       if (isOpposite(d, curr)) {
-        // Мгновенный разворот
         queuedDirRef.current = null;
         setPacmanDir(d);
         return;
       }
       if (d === curr) return;
-      // Иначе — сохранить единственную заготовку (заменяя предыдущую)
       queuedDirRef.current = d;
     },
     [setPacmanDir],
   );
 
-  // --- Управление клавишами
   const keyDownHandler = useCallback(
     (e: KeyboardEvent) => {
       const d = keyMap[e.code];
       if (!d || gameOver) return;
-
       if (d === 'space') {
         if (!isRunning) startGame();
         return;
@@ -97,18 +112,17 @@ export const Pacman = () => {
     [gameOver, isRunning, startGame, applyDirection],
   );
 
-  const keyUpHandler = useCallback(() => {}, []);
-
   useEffect(() => {
+    const keyUpHandler = () => {};
     window.addEventListener('keydown', keyDownHandler);
     window.addEventListener('keyup', keyUpHandler);
     return () => {
       window.removeEventListener('keydown', keyDownHandler);
       window.removeEventListener('keyup', keyUpHandler);
     };
-  }, [keyDownHandler, keyUpHandler]);
+  }, [keyDownHandler]);
 
-  // --- Управление свайпами (тач)
+  // --- Тач-свайпы
   const touchStartRef = useRef<{ x: number; y: number; t: number } | null>(null);
 
   const handleTouchStart = useCallback(
@@ -116,13 +130,8 @@ export const Pacman = () => {
       if (gameOver) return;
       const t = e.touches[0];
       if (!t) return;
-
       touchStartRef.current = { x: t.clientX, y: t.clientY, t: Date.now() };
-
-      // Первый тап — запуск игры (аналог пробела)
       if (!isRunning) startGame();
-
-      // чтобы страница не скроллилась/зумалась
       e.preventDefault();
     },
     [gameOver, isRunning, startGame],
@@ -134,28 +143,21 @@ export const Pacman = () => {
       const st = touchStartRef.current;
       touchStartRef.current = null;
       if (!st) return;
-
       const t = e.changedTouches[0];
       if (!t) return;
-
       const dt = Date.now() - st.t;
-      if (dt > SWIPE_TIME_MS) return; // слишком долгий жест — игнор
-
+      if (dt > SWIPE_TIME_MS) return;
       const dx = t.clientX - st.x;
       const dy = t.clientY - st.y;
       const adx = Math.abs(dx);
       const ady = Math.abs(dy);
-
       if (adx < SWIPE_MIN_PX && ady < SWIPE_MIN_PX) {
-        // короткий тап — уже запустили игру на touchstart (если нужно)
         e.preventDefault();
         return;
       }
-
       let d: Dir;
       if (adx > ady) d = dx > 0 ? 'right' : 'left';
       else d = dy > 0 ? 'down' : 'up';
-
       applyDirection(d);
       e.preventDefault();
     },
@@ -163,8 +165,6 @@ export const Pacman = () => {
   );
 
   useEffect(() => {
-    // Вешаем на window, чтобы накрыть всю область
-    // ВАЖНО: passive: false — чтобы работал preventDefault()
     window.addEventListener('touchstart', handleTouchStart as EventListener, { passive: false });
     window.addEventListener('touchend', handleTouchEnd as EventListener, { passive: false });
     return () => {
@@ -180,7 +180,6 @@ export const Pacman = () => {
       const hbY = y + HITBOX_PAD;
       const hbR = hbX + PACMAN_HITBOX;
       const hbB = hbY + PACMAN_HITBOX;
-
       for (const sh of sharks) {
         const sx = sh.x,
           sy = sh.y;
@@ -193,7 +192,7 @@ export const Pacman = () => {
     [sharks, HITBOX_PAD, PACMAN_HITBOX, TILE_SIZE],
   );
 
-  // --- Проверка шага
+  // --- Проверка шага (с микрозазором)
   const canStep = useCallback(
     (x: number, y: number, dir: Dir) => {
       let nx = x,
@@ -203,18 +202,19 @@ export const Pacman = () => {
       else if (dir === 'left') nx -= PACMAN_SPEED;
       else nx += PACMAN_SPEED;
 
+      const GEO_EPS = 0.001;
       const hbX = nx + HITBOX_PAD;
       const hbY = ny + HITBOX_PAD;
-      const hbRight = hbX + PACMAN_HITBOX;
-      const hbBottom = hbY + PACMAN_HITBOX;
+      const hbRight = hbX + PACMAN_HITBOX - GEO_EPS;
+      const hbBottom = hbY + PACMAN_HITBOX - GEO_EPS;
 
       if (hbX < 0 || hbY < 0 || hbRight > MAP_COLS * TILE_SIZE || hbBottom > MAP_ROWS * TILE_SIZE)
         return null;
 
       const c0 = Math.floor(hbX / TILE_SIZE);
       const r0 = Math.floor(hbY / TILE_SIZE);
-      const c1 = Math.floor((hbRight - 1) / TILE_SIZE);
-      const r1 = Math.floor((hbBottom - 1) / TILE_SIZE);
+      const c1 = Math.floor(hbRight / TILE_SIZE);
+      const r1 = Math.floor(hbBottom / TILE_SIZE);
 
       for (let r = r0; r <= r1; r++) {
         for (let c = c0; c <= c1; c++) {
@@ -226,28 +226,70 @@ export const Pacman = () => {
     [PACMAN_SPEED, HITBOX_PAD, PACMAN_HITBOX, TILE_SIZE],
   );
 
-  // --- Анимация и движение: всегда плывём
+  // --- Магнит к центру по поперечной оси (без продвижения вперёд)
+  const applyPerpMagnet = (x: number, y: number, dir: Dir) => {
+    const { cx, cy } = cellCenter(x, y);
+    if (dir === 'up' || dir === 'down') {
+      const dy = 0; // не трогаем продольную ось
+      const ax = Math.min(PACMAN_SPEED, Math.abs(cx - x));
+      const dx = Math.sign(cx - x) * ax;
+      if (Math.abs(cx - x) <= PERP_EPS) return { x, y };
+      return { x: x + dx, y: y + dy };
+    } else {
+      const dx = 0;
+      const ay = Math.min(PACMAN_SPEED, Math.abs(cy - y));
+      const dy = Math.sign(cy - y) * ay;
+      if (Math.abs(cy - y) <= PERP_EPS) return { x, y };
+      return { x: x + dx, y: y + dy };
+    }
+  };
+
+  // --- Основная анимация
   const animate = useCallback(() => {
     if (gameOver || !isRunning) return;
 
-    const { x, y, dir } = posRef.current;
+    let { x, y, dir } = posRef.current;
 
-    // Пробуем выполнить заготовленный поворот, если он возможен из текущей клетки
-    let activeDir: Dir = dir;
+    // 1) Подтягиваем к центру по поперечной оси (чтобы поворот «влез»)
+    const afterMagnet = applyPerpMagnet(x, y, dir);
+    x = afterMagnet.x;
+    y = afterMagnet.y;
+
+    const { cx, cy } = cellCenter(x, y);
+    const perpOk =
+      dir === 'left' || dir === 'right'
+        ? Math.abs(y - cy) <= PERP_EPS
+        : Math.abs(x - cx) <= PERP_EPS;
+
+    // 2) Поворот: если в очереди есть направление и (мы близко к центру продольно или пролетим центр на этом шаге)
     const q = queuedDirRef.current;
-    if (q) {
-      const tryTurn = canStep(x, y, q);
-      if (tryTurn) {
-        activeDir = q;
-        queuedDirRef.current = null; // поворот выполнен
-        setPacmanDir(activeDir);
+    if (q && perpOk) {
+      const willCross = willCrossCenter(x, y, dir, PACMAN_SPEED);
+      const longOk =
+        dir === 'left' || dir === 'right'
+          ? Math.abs(x - cx) <= LONG_EPS || willCross
+          : Math.abs(y - cy) <= LONG_EPS || willCross;
+
+      if (longOk) {
+        // снап к центру и пробуем повернуть
+        const snappedX = cx;
+        const snappedY = cy;
+        const tryTurn = canStep(snappedX, snappedY, q);
+        if (tryTurn) {
+          setPacmanDir(q);
+          queuedDirRef.current = null;
+          dir = q;
+          x = tryTurn.x;
+          y = tryTurn.y;
+        }
+        // если нельзя — держим очередь и поедем дальше прямо
       }
     }
 
-    // Двигаемся по активному направлению
-    const step = canStep(x, y, activeDir);
+    // 3) Шаг вперёд по активному направлению
+    const step = canStep(x, y, dir);
     if (!step) {
-      // Уперлись в стену: не двигаемся (ждём, пока игрок задаст допустимый поворот)
+      // В стену: стоим, пока не окажемся у центра для валидного поворота
       return;
     }
 
@@ -257,8 +299,18 @@ export const Pacman = () => {
     }
 
     setPacmanPos(step.x, step.y);
-    posRef.current = { ...step, dir: activeDir };
-  }, [gameOver, isRunning, canStep, checkSharkCollision, setPacmanPos, setPacmanDir]);
+    posRef.current = { x: step.x, y: step.y, dir };
+  }, [
+    gameOver,
+    isRunning,
+    setPacmanDir,
+    canStep,
+    checkSharkCollision,
+    setPacmanPos,
+    PACMAN_SPEED,
+    PERP_EPS,
+    LONG_EPS,
+  ]);
 
   useTick(animate);
 
@@ -327,7 +379,6 @@ export const Pacman = () => {
 
   if (!frames || frames.length === 0) return null;
 
-  // Вращение и скорость анимации теперь не зависят от зажатых клавиш
   const rotation =
     pacman.dir === 'right'
       ? Math.PI / 2
@@ -346,7 +397,7 @@ export const Pacman = () => {
       x={renderX}
       y={renderY}
       size={SPRITE_SIZE}
-      speed={isRunning ? 2 : 0.6} // всегда «плывём» в игре
+      speed={isRunning ? 2 : 0.6}
       rotation={rotation}
     />
   );

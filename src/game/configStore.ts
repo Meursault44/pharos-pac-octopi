@@ -6,7 +6,7 @@ const BASE_TILE = 60;
 const BASE_DISPLACEMENT_SCALE = 30;
 const BASE_PACMAN_SPEED = 2.8;
 const BASE_SHARK_SPEED = 2.8;
-const BASE_PACMAN_HITBOX = 58;
+const BASE_PACMAN_HITBOX = 60;
 const BASE_SHARK_HITBOX = 52; // <-- добавь: чуть меньше тайла
 
 export type ConfigState = {
