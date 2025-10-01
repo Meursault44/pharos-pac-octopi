@@ -1,19 +1,31 @@
 import { CloseButton, Dialog, Portal, VStack, Button } from '@chakra-ui/react';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useDialogsStore } from '@/store/dialogs';
 import bg from '@/assets/bgWin.jpg';
 import { OctopiWithText } from '@/components/OctopiWithText.tsx';
 import winOctopi from '@/assets/winOctopi.png';
 import { useGameStore } from '@/game/gameStore.ts';
+import useSound from 'use-sound';
+import vikaSfx from '@/sounds/vika.mp3';
 
 export const DialogWinGame = () => {
   const { dialogWinGame, setDialogWinGame } = useDialogsStore();
   const startGame = useGameStore((s) => s.startGame);
+  const [playWin] = useSound(vikaSfx, {
+    volume: 0.1, // подстрой по вкусу
+    interrupt: true, // обрывает предыдущий звук, если новый стартует
+  });
 
   const onStartGameHandler = useCallback(() => {
     setDialogWinGame(false);
     startGame();
   }, [startGame, setDialogWinGame]);
+
+  useEffect(() => {
+    if (dialogWinGame) {
+      playWin();
+    }
+  }, [playWin, dialogWinGame]);
 
   return (
     <Dialog.Root open={dialogWinGame} onOpenChange={(e) => setDialogWinGame(e?.open)}>

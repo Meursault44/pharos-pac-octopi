@@ -38,13 +38,15 @@ export const Pacman = () => {
   const TILE_SIZE = useConfig((s) => s.tileSize);
   const PACMAN_SPEED = useConfig((s) => s.pacmanSpeed);
   const PACMAN_HITBOX = useConfig((s) => s.pacmanHitbox);
+  const SHARK_HITBOX = useConfig((s) => s.sharkHitbox);
   const [playPellet] = useSound(pelletSfx, {
-    volume: 0.1, // подстрой по вкусу
+    volume: 0.05, // подстрой по вкусу
     interrupt: true, // обрывает предыдущий звук, если новый стартует
   });
 
   const SPRITE_SIZE = TILE_SIZE;
   const HITBOX_PAD = (SPRITE_SIZE - PACMAN_HITBOX) / 2;
+  const SHARK_PAD = (TILE_SIZE - SHARK_HITBOX) / 2;
 
   const pacman = useGameStore((s) => s.pacman);
   const setPacmanPos = useGameStore((s) => s.setPacmanPos);
@@ -178,23 +180,43 @@ export const Pacman = () => {
     };
   }, [handleTouchStart, handleTouchEnd]);
 
-  // --- Коллизия с акулами
   const checkSharkCollision = useCallback(
     (x: number, y: number) => {
+      // хитбокс пакмана
       const hbX = x + HITBOX_PAD;
       const hbY = y + HITBOX_PAD;
       const hbR = hbX + PACMAN_HITBOX;
       const hbB = hbY + PACMAN_HITBOX;
+
       for (const sh of sharks) {
-        const sx = sh.x,
-          sy = sh.y;
-        const sr = sx + TILE_SIZE,
-          sb = sy + TILE_SIZE;
-        if (hbX < sr && hbR > sx && hbY < sb && hbB > sy) return true;
+        // хитбокс акулы (уменьшенный)
+        const sx = sh.x + SHARK_PAD;
+        const sy = sh.y + SHARK_PAD;
+        const sr = sx + SHARK_HITBOX;
+        const sb = sy + SHARK_HITBOX;
+
+        // AABB-пересечение?
+        if (hbX < sr && hbR > sx && hbY < sb && hbB > sy) {
+          // центр области пересечения
+          const ox1 = Math.max(hbX, sx);
+          const oy1 = Math.max(hbY, sy);
+          const ox2 = Math.min(hbR, sr);
+          const oy2 = Math.min(hbB, sb);
+          const mx = (ox1 + ox2) / 2;
+          const my = (oy1 + oy2) / 2;
+
+          // если центр пересечения попал в стену — между нами стена, коллизию игнорируем
+          const c = Math.floor(mx / TILE_SIZE);
+          const r = Math.floor(my / TILE_SIZE);
+          if (isWallAt(c, r)) continue;
+
+          // иначе — реальная коллизия в проходе
+          return true;
+        }
       }
       return false;
     },
-    [sharks, HITBOX_PAD, PACMAN_HITBOX, TILE_SIZE],
+    [sharks, HITBOX_PAD, PACMAN_HITBOX, SHARK_PAD, SHARK_HITBOX, TILE_SIZE],
   );
 
   // --- Проверка шага (с микрозазором)

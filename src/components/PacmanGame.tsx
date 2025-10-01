@@ -20,7 +20,6 @@ import { SharkAI } from './SharkAI';
 import { MAP_COLS, MAP_ROWS } from '@/game/mapData';
 import { useConfig } from '@/game/configStore';
 import { useGameStore } from '@/game/gameStore';
-import { useDialogsStore } from '@/store/dialogs';
 import useSound from 'use-sound';
 import deepWaterSfx from '@/sounds/deep-water-water-2.mp3';
 
@@ -49,7 +48,7 @@ export const PacmanGame = () => {
   const startGame = useGameStore((s) => s.startGame);
   const [play] = useSound(deepWaterSfx, {
     loop: true, // передаём этот параметр “сквозь” use-sound к Howler
-    volume: 0.2,
+    volume: 0.25,
   });
 
   const aspect = MAP_COLS / MAP_ROWS;

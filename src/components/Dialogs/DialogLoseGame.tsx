@@ -1,19 +1,33 @@
 import { CloseButton, Dialog, Portal, VStack, Button } from '@chakra-ui/react';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useDialogsStore } from '@/store/dialogs';
 import bg from '@/assets/bgLose.jpg';
 import { OctopiWithText } from '@/components/OctopiWithText.tsx';
 import OctopiLost from '@/assets/OctopiLost.png';
 import { useGameStore } from '@/game/gameStore.ts';
+import useSound from 'use-sound';
+import lostSfx from '@/sounds/lost.mp3';
 
 export const DialogLoseGame = () => {
   const { dialogLoseGame, setDialogLoseGame } = useDialogsStore();
   const startGame = useGameStore((s) => s.startGame);
 
+  const [playLost] = useSound(lostSfx, {
+    volume: 0.1, // подстрой по вкусу
+    interrupt: true, // обрывает предыдущий звук, если новый стартует
+  });
+
   const onStartGameHandler = useCallback(() => {
     setDialogLoseGame(false);
     startGame();
   }, [startGame, setDialogLoseGame]);
+
+  useEffect(() => {
+    if (dialogLoseGame) {
+      console.log('play lost');
+      playLost();
+    }
+  }, [playLost, dialogLoseGame]);
 
   return (
     <Dialog.Root open={dialogLoseGame} onOpenChange={(e) => setDialogLoseGame(e?.open)}>
