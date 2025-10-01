@@ -134,7 +134,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (pellets.has(k)) {
       pellets.delete(k);
       set((s) => ({ pellets: new Set(pellets), score: s.score + 10 }));
-      if (get().score > 1810) {
+      if (get().score > 1650) {
         set({ isWin: true, gameOver: true, isRunning: false });
       }
       return 'pellet';
@@ -172,26 +172,17 @@ export const useGameStore = create<GameState>((set, get) => ({
           { d: 'left', c: cc - 1, r: rr },
           { d: 'right', c: cc + 1, r: rr },
         ];
+
         for (const n of neigh) {
           if (isWalkableCell(n.c, n.r)) options.push(n.d);
         }
 
-        // если есть варианты кроме обратного — исключаем мгновенный разворот
+        // исключаем мгновенный разворот, если есть другие варианты
         let candidates = options.filter((d0) => d0 !== opposite(dir));
-        if (candidates.length === 0) candidates = options.slice(); // тупик — можно и назад
+        if (candidates.length === 0) candidates = options.slice(); // тупик — можно назад
 
-        // взвешенный выбор: вперёд — чуть приоритетнее, повороты — тоже ок
-        // так акулы не «залипают» в одной прямой
-        const weights = candidates.map((d0) => {
-          if (d0 === dir) return { v: d0, w: 3 }; // держать курс
-          if ((dir === 'up' || dir === 'down') && (d0 === 'left' || d0 === 'right'))
-            return { v: d0, w: 2 }; // поворот
-          if ((dir === 'left' || dir === 'right') && (d0 === 'up' || d0 === 'down'))
-            return { v: d0, w: 2 };
-          return { v: d0, w: 1 }; // на всякий
-        });
-
-        dir = pickWeighted(weights);
+        // выбираем случайное направление из доступных
+        dir = candidates[Math.floor(Math.random() * candidates.length)];
       }
 
       // шаг по выбранному направлению

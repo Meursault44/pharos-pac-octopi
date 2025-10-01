@@ -32,6 +32,7 @@ export const Pacman = () => {
   const TILE_SIZE = useConfig((s) => s.tileSize);
   const PACMAN_SPEED = useConfig((s) => s.pacmanSpeed);
   const PACMAN_HITBOX = useConfig((s) => s.pacmanHitbox);
+  const SHARK_HITBOX = useConfig((s) => s.sharkHitbox);
 
   const SPRITE_SIZE = TILE_SIZE;
   const HITBOX_PAD = (SPRITE_SIZE - PACMAN_HITBOX) / 2;
@@ -102,24 +103,22 @@ export const Pacman = () => {
   }, [keyDownHandler, keyUpHandler]);
 
   // --- Коллизия с акулами
-  const checkSharkCollision = useCallback(
-    (x: number, y: number) => {
-      const hbX = x + HITBOX_PAD;
-      const hbY = y + HITBOX_PAD;
-      const hbR = hbX + PACMAN_HITBOX;
-      const hbB = hbY + PACMAN_HITBOX;
+    const checkSharkCollision = useCallback((x: number, y: number) => {
+        const pcx = x + SPRITE_SIZE / 2;
+        const pcy = y + SPRITE_SIZE / 2;
+        const pr  = PACMAN_HITBOX / 2;
 
-      for (const sh of sharks) {
-        const sx = sh.x,
-          sy = sh.y;
-        const sr = sx + TILE_SIZE,
-          sb = sy + TILE_SIZE;
-        if (hbX < sr && hbR > sx && hbY < sb && hbB > sy) return true;
-      }
-      return false;
-    },
-    [sharks, HITBOX_PAD, PACMAN_HITBOX, TILE_SIZE],
-  );
+        for (const sh of sharks) {
+            const scx = sh.x + TILE_SIZE / 2;
+            const scy = sh.y + TILE_SIZE / 2;
+            const sr  = SHARK_HITBOX / 2;
+
+            const dx = pcx - scx;
+            const dy = pcy - scy;
+            if (dx * dx + dy * dy <= (pr + sr) * (pr + sr)) return true;
+        }
+        return false;
+    }, [sharks, SPRITE_SIZE, TILE_SIZE, PACMAN_HITBOX, SHARK_HITBOX]);
 
   // --- Проверка шага
   const canStep = useCallback(
