@@ -134,7 +134,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (pellets.has(k)) {
       pellets.delete(k);
       set((s) => ({ pellets: new Set(pellets), score: s.score + 10 }));
-      if (get().score > 1650) {
+      if (get().score > 1740) {
         set({ isWin: true, gameOver: true, isRunning: false });
       }
       return 'pellet';
@@ -152,13 +152,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       let { x, y, dir } = s;
 
       // текущая клетка по ближайшему центру
-      const cc = Math.round(x / tileSize);
-      const rr = Math.round(y / tileSize);
+      const cc = Math.floor((x + tileSize / 2) / tileSize);
+      const rr = Math.floor((y + tileSize / 2) / tileSize);
       const cx = cc * tileSize;
       const cy = rr * tileSize;
 
-      const CENTER_EPS = Math.min(0.49, sharkSpeed * 0.45); // всегда < шага и < 0.5
-      const nearCenter = Math.abs(x - cx) < CENTER_EPS && Math.abs(y - cy) < CENTER_EPS;
+// порог: не меньше половины шага, не больше 40% тайла
+      const CENTER_EPS = Math.min(tileSize * 0.4, Math.max(0.5, sharkSpeed * 0.6));
+// если мы «пересекли» центр — считаем, что у центра
+      const nearCenter = Math.abs(x - cx) <= CENTER_EPS && Math.abs(y - cy) <= CENTER_EPS;
 
       if (nearCenter) {
         x = cx;
@@ -182,7 +184,28 @@ export const useGameStore = create<GameState>((set, get) => ({
         if (candidates.length === 0) candidates = options.slice(); // тупик — можно назад
 
         // выбираем случайное направление из доступных
-        dir = candidates[Math.floor(Math.random() * candidates.length)];
+        const forward = dir;
+        const leftRight: Dir[] = dir === 'up' || dir === 'down' ? ['left','right'] : ['up','down'];
+
+        const weighted: Array<{v: Dir; w: number}> = [];
+        for (const d0 of options) {
+          if (d0 === opposite(dir)) continue;        // не разворачиваемся, если есть альтернатива
+          if (d0 === forward) weighted.push({ v: d0, w: 0.6 });
+          else if (leftRight.includes(d0)) weighted.push({ v: d0, w: 0.2 });
+        }
+// если вообще не осталось — значит тупик, можно назад
+        if (weighted.length === 0 && options.length > 0) {
+          weighted.push({ v: opposite(dir), w: 1 });
+        }
+
+// простой взвешенный выбор
+        let sum = 0, r = Math.random();
+        for (const it of weighted) sum += it.w;
+        let acc = 0;
+        for (const it of weighted) {
+          acc += it.w / sum;
+          if (r <= acc) { dir = it.v; break; }
+        }
       }
 
       // шаг по выбранному направлению
@@ -204,9 +227,15 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
 
         let turned = false;
+
+// слегка «прилипнем» к центру клетки перед попытками повернуть,
+// чтобы габарит прямоугольника не цеплял стену
+        const snapX = Math.abs(x - cx) <= sharkSpeed ? cx : x + Math.sign(cx - x) * Math.min(sharkSpeed, Math.abs(cx - x));
+        const snapY = Math.abs(y - cy) <= sharkSpeed ? cy : y + Math.sign(cy - y) * Math.min(sharkSpeed, Math.abs(cy - y));
+
         for (const d2 of alternatives) {
-          const tryX = d2 === 'left' ? x - sharkSpeed : d2 === 'right' ? x + sharkSpeed : x;
-          const tryY = d2 === 'up' ? y - sharkSpeed : d2 === 'down' ? y + sharkSpeed : y;
+          const tryX = d2 === 'left' ? snapX - sharkSpeed : d2 === 'right' ? snapX + sharkSpeed : snapX;
+          const tryY = d2 === 'up'   ? snapY - sharkSpeed : d2 === 'down'  ? snapY + sharkSpeed : snapY;
           if (canPlaceRect(tryX, tryY)) {
             dir = d2;
             nx = tryX;
@@ -216,11 +245,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           }
         }
 
-        if (!turned) {
-          // совсем зажаты — остаёмся на месте; можно ещё слегка отскочить
-          nx = x;
-          ny = y;
-        }
+        if (!turned) { nx = x; ny = y; }
       }
 
       return { ...s, x: nx, y: ny, dir };
