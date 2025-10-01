@@ -127,11 +127,10 @@ export const Pacman = () => {
 
   const handleTouchStart = useCallback(
     (e: TouchEvent) => {
-      if (gameOver) return;
+      if (gameOver || !isRunning) return;
       const t = e.touches[0];
       if (!t) return;
       touchStartRef.current = { x: t.clientX, y: t.clientY, t: Date.now() };
-      if (!isRunning) startGame();
       e.preventDefault();
     },
     [gameOver, isRunning, startGame],
@@ -139,7 +138,7 @@ export const Pacman = () => {
 
   const handleTouchEnd = useCallback(
     (e: TouchEvent) => {
-      if (gameOver) return;
+      if (gameOver || !isRunning) return;
       const st = touchStartRef.current;
       touchStartRef.current = null;
       if (!st) return;
@@ -161,7 +160,7 @@ export const Pacman = () => {
       applyDirection(d);
       e.preventDefault();
     },
-    [applyDirection, gameOver],
+    [applyDirection, gameOver, isRunning],
   );
 
   useEffect(() => {

@@ -44,16 +44,17 @@ export const PacmanGame = () => {
 
   const isRunning = useGameStore((s) => s.isRunning);
   const initFromLayout = useGameStore((s) => s.initFromLayout);
-  const setDialogStartGame = useDialogsStore((s) => s.setDialogStartGame);
+  const startGame = useGameStore((s) => s.startGame);
 
   const aspect = MAP_COLS / MAP_ROWS;
 
   const setDialogStartGameHandler = useCallback(
     (e) => {
+      console.log('asd');
       e.preventDefault();
-      setDialogStartGame(true);
+      startGame();
     },
-    [setDialogStartGame],
+    [startGame],
   );
 
   useEffect(() => {

@@ -92,7 +92,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   // стартовая позиция пакмана
   pacman: { x: 0, y: 0, dir: 'right' },
 
-  startGame: () => set({ isRunning: true }),
+  startGame: () => {
+    get().reset();
+    set({ isRunning: true });
+  },
   setIsWin: (val) => set({ isWin: val }),
 
   initFromLayout: () => {

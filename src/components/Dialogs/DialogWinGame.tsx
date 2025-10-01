@@ -1,88 +1,75 @@
-import { CloseButton, Dialog, Portal } from '@chakra-ui/react';
+import { CloseButton, Dialog, Portal, VStack, Button } from '@chakra-ui/react';
+import { useCallback } from 'react';
 import { useDialogsStore } from '@/store/dialogs';
+import bg from '@/assets/bgWin.jpg';
+import { OctopiWithText } from '@/components/OctopiWithText.tsx';
+import winOctopi from '@/assets/winOctopi.png';
 import { useGameStore } from '@/game/gameStore.ts';
-import { useUserInfoStore } from '@/store/userInfo.ts';
-import { useWriteContract, useSwitchChain, useAccount } from 'wagmi';
-import { PHAROS_FAUCET_ABI } from '@/PharosFaucetABI.ts';
-import { PHAROS_FAUCET_ADDRESS, pharosTestnet } from '@/wagmi.ts';
-import { useEffect } from 'react';
-import { parseEther } from 'viem';
 
 export const DialogWinGame = () => {
   const { dialogWinGame, setDialogWinGame } = useDialogsStore();
-  const address = useUserInfoStore((s) => s.address);
+  const startGame = useGameStore((s) => s.startGame);
 
-  const { data: data, isPending, writeContract } = useWriteContract();
-  const { chain } = useAccount();
-  const { switchChain, isPending: isSwitching } = useSwitchChain();
-
-  async function ensurePharos() {
-    if (chain?.id !== pharosTestnet.id) {
-      await switchChain({ chainId: pharosTestnet.id }); // MetaMask предложит добавить сеть, если её нет
-    }
-  }
-  console.log(chain);
-  console.log(data);
-  console.log(address);
-
-  const isWin = useGameStore((s) => s.isWin);
-  const setIsWin = useGameStore((s) => s.setIsWin);
-
-  useEffect(() => {
-    if (isWin) {
-      setDialogWinGame(true);
-      setIsWin(false);
-    }
-  }, [isWin, setDialogWinGame, setIsWin]);
+  const onStartGameHandler = useCallback(() => {
+    setDialogWinGame(false);
+    startGame();
+  }, [startGame, setDialogWinGame]);
 
   return (
-    <>
-      <Dialog.Root open={dialogWinGame} onOpenChange={(e) => setDialogWinGame(e?.open)}>
-        <Portal>
-          <Dialog.Backdrop />
-          <Dialog.Positioner>
-            <Dialog.Content maxW="450px">
-              <Dialog.Header>
-                <Dialog.Title>You win!!!</Dialog.Title>
-              </Dialog.Header>
-              <Dialog.Body display={'flex'} justifyContent={'center'}>
-                GG
-                <button
-                  onClick={async () => {
-                    await ensurePharos();
-                    writeContract({
-                      address: PHAROS_FAUCET_ADDRESS,
-                      abi: PHAROS_FAUCET_ABI,
-                      functionName: 'claim',
-                      chainId: pharosTestnet.id,
-                      args: [address],
-                    });
-                  }}
-                >
-                  Claim
-                </button>
-                <button
-                  onClick={async () => {
-                    await ensurePharos();
-                    writeContract({
-                      address: PHAROS_FAUCET_ADDRESS,
-                      abi: PHAROS_FAUCET_ABI,
-                      functionName: 'deposit',
-                      chainId: pharosTestnet.id,
-                      value: parseEther('1'),
-                    });
-                  }}
-                >
-                  Deposit
-                </button>
-              </Dialog.Body>
-              <Dialog.CloseTrigger asChild>
-                <CloseButton size="sm" />
-              </Dialog.CloseTrigger>
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
-    </>
+    <Dialog.Root open={dialogWinGame} onOpenChange={(e) => setDialogWinGame(e?.open)}>
+      <Portal>
+        <Dialog.Backdrop />
+
+        <Dialog.Positioner>
+          <Dialog.Content
+            w="50vw"
+            maxW="1536px"
+            aspectRatio="3 / 2"
+            position="relative"
+            overflow="hidden"
+            bgImage={`url(${bg})`}
+            bgSize="contain"
+            bgPos="center"
+            bgRepeat="no-repeat"
+            bgColor="black"
+            color="white"
+            boxShadow="xl"
+            borderRadius="lg"
+            display="flex"
+            flexDir="column"
+          >
+            <Dialog.Header>
+              <Dialog.Title>you won</Dialog.Title>
+            </Dialog.Header>
+
+            <Dialog.Body
+              display="flex"
+              justifyContent="flex-start"
+              alignItems="flex-end"
+              flex="1"
+              px="10px"
+            >
+              <VStack alignItems={'flex-start'} mb={'10%'}>
+                <OctopiWithText
+                  imgSrc={winOctopi}
+                  text={
+                    'You really managed to collect all the coins while five sharks were chasing you. Congratulations!'
+                  }
+                />
+                <VStack w={'100%'} alignItems={'flex-end'}>
+                  <Button onClick={onStartGameHandler} p={'2rem'} fontSize={'2rem'}>
+                    Play again
+                  </Button>
+                </VStack>
+              </VStack>
+            </Dialog.Body>
+
+            <Dialog.CloseTrigger asChild>
+              <CloseButton size="sm" />
+            </Dialog.CloseTrigger>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
+    </Dialog.Root>
   );
 };
