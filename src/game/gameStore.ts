@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { RAW_LAYOUT, MAP_COLS, MAP_ROWS, cellKey, isWallAt } from './mapData';
 import { useConfig } from './configStore';
+import { useDialogsStore } from '@/store/dialogs.ts';
 
 type Eaten = 'pellet' | null;
 type Dir = 'up' | 'down' | 'left' | 'right';
@@ -139,6 +140,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       set((s) => ({ pellets: new Set(pellets), score: s.score + 10 }));
       if (get().score > 1740) {
         set({ isWin: true, gameOver: true, isRunning: false });
+        useDialogsStore.getState().setDialogWinGame(true);
       }
       return 'pellet';
     }

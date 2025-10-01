@@ -53,7 +53,7 @@ export const DialogLoseGame = () => {
                 <OctopiWithText
                   imgSrc={OctopiLost}
                   text={
-                    'Something went wrong, but everything is fine, because there are 5 sharks and you are 1'
+                    'It seems you lost, but everything is fine, because there are 6 sharks and you are 1'
                   }
                 />
                 <VStack w={'100%'} alignItems={'flex-end'}>

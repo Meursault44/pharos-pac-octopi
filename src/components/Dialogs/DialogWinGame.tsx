@@ -53,7 +53,7 @@ export const DialogWinGame = () => {
                 <OctopiWithText
                   imgSrc={winOctopi}
                   text={
-                    'You really managed to collect all the coins while five sharks were chasing you. Congratulations!'
+                    'You really managed to collect all the coins while 6 sharks were chasing you. Congratulations!'
                   }
                 />
                 <VStack w={'100%'} alignItems={'flex-end'}>

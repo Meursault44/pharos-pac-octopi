@@ -7,6 +7,8 @@ import { useConfig } from '@/game/configStore';
 import { useGameStore } from '@/game/gameStore';
 import { useDialogsStore } from '@/store/dialogs';
 import { PacmanAnim } from './PacmanAnim';
+import useSound from 'use-sound';
+import pelletSfx from '@/sounds/slurping-is-short.mp3';
 
 type Dir = 'up' | 'down' | 'left' | 'right';
 
@@ -36,6 +38,10 @@ export const Pacman = () => {
   const TILE_SIZE = useConfig((s) => s.tileSize);
   const PACMAN_SPEED = useConfig((s) => s.pacmanSpeed);
   const PACMAN_HITBOX = useConfig((s) => s.pacmanHitbox);
+  const [playPellet] = useSound(pelletSfx, {
+    volume: 0.1, // подстрой по вкусу
+    interrupt: true, // обрывает предыдущий звук, если новый стартует
+  });
 
   const SPRITE_SIZE = TILE_SIZE;
   const HITBOX_PAD = (SPRITE_SIZE - PACMAN_HITBOX) / 2;
@@ -349,6 +355,7 @@ export const Pacman = () => {
 
   // --- Еда + проверка акул по позиции
   const lastCellRef = useRef<string>('');
+  // --- Еда + проверка акул по позиции
   useEffect(() => {
     if (gameOver) return;
 
@@ -360,13 +367,25 @@ export const Pacman = () => {
 
     if (k !== lastCellRef.current) {
       lastCellRef.current = k;
-      consume(col, row);
+      const eaten = consume(col, row); // <— получаем результат
+      if (eaten === 'pellet') {
+        playPellet(); // <— звук «съедено»
+      }
     }
 
     if (checkSharkCollision(pacman.x, pacman.y)) {
       setShouldEndGame(true);
     }
-  }, [pacman.x, pacman.y, consume, gameOver, checkSharkCollision, TILE_SIZE, SPRITE_SIZE]);
+  }, [
+    pacman.x,
+    pacman.y,
+    consume,
+    gameOver,
+    checkSharkCollision,
+    TILE_SIZE,
+    SPRITE_SIZE,
+    playPellet,
+  ]);
 
   // --- Завершение игры
   useEffect(() => {
