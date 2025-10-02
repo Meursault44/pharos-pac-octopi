@@ -58,19 +58,19 @@ export const DialogLoseGame = () => {
 
             <Dialog.Body
               display="flex"
-              justifyContent="flex-start"
-              alignItems="flex-end"
+              justifyContent={["center", "center", "flex-start"]}
+              alignItems={["center", "center", "flex-end"]}
               flex="1"
               px="10px"
             >
-              <VStack alignItems={'flex-start'} mb={'10%'}>
+              <VStack alignItems={'flex-start'} mb={'10%'} gap={['1.2rem', '1.2rem', '0.6rem', '0.6rem']}>
                 <OctopiWithText
                   imgSrc={OctopiLost}
                   text={
                     'It seems you lost, but everything is fine, because there are 6 sharks and you are 1'
                   }
                 />
-                <VStack w={'100%'} alignItems={['center', 'center', 'center', 'flex-end']}>
+                <VStack w={'100%'} alignItems={'center'}>
                   <Button
                     onClick={onStartGameHandler}
                     p={['28px, 28px, 28px, 32px']}
