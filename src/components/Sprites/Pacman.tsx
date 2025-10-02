@@ -9,6 +9,7 @@ import { useDialogsStore } from '@/store/dialogs';
 import { PacmanAnim } from './PacmanAnim';
 import useSound from 'use-sound';
 import pelletSfx from '@/sounds/slurping-is-short.mp3';
+import { sendEvent } from '@/analytics/ga';
 
 type Dir = 'up' | 'down' | 'left' | 'right';
 
@@ -57,6 +58,7 @@ export const Pacman = () => {
   const endGame = useGameStore((s) => s.endGame);
   const isRunning = useGameStore((s) => s.isRunning);
   const startGame = useGameStore((s) => s.startGame);
+  const score = useGameStore((s) => s.score);
 
   const { setDialogLoseGame } = useDialogsStore();
 
@@ -412,6 +414,9 @@ export const Pacman = () => {
   // --- Завершение игры
   useEffect(() => {
     if (!shouldEndGame) return;
+      try {
+          sendEvent('game_lose', { score });
+      } catch {}
     endGame();
     setShouldEndGame(false);
     setDialogLoseGame(true);

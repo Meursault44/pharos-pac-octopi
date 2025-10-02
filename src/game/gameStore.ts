@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { RAW_LAYOUT, MAP_COLS, MAP_ROWS, cellKey, isWallAt } from './mapData';
 import { useConfig } from './configStore';
 import { useDialogsStore } from '@/store/dialogs.ts';
+import { sendEvent } from '@/analytics/ga';
 
 type Eaten = 'pellet' | null;
 type Dir = 'up' | 'down' | 'left' | 'right';
@@ -142,6 +143,13 @@ export const useGameStore = create<GameState>((set, get) => ({
         set({ isWin: true, gameOver: true, isRunning: false });
         useDialogsStore.getState().setDialogWinGame(true);
       }
+      try {
+        const { score } = get();
+        sendEvent('game_win', {
+          score,
+          pellets_left: pellets.size, // сколько осталось
+        });
+      } catch {}
       return 'pellet';
     }
     return null;

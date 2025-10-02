@@ -7,6 +7,9 @@ import '@fontsource/open-sans/500.css';
 import '@fontsource/open-sans/600.css';
 import '@fontsource/open-sans/700.css';
 import { App } from './App.tsx';
+import { initGA } from './analytics/ga'; //
+
+initGA();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
