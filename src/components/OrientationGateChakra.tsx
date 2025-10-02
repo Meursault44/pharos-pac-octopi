@@ -46,9 +46,9 @@ export default function OrientationGateChakra() {
       >
         <Card.Body textAlign="center" color="white">
           <Heading size="md" mb={2}>
-            Поверните устройство
+            Turn the device
           </Heading>
-          <Text opacity={0.9}>Для игры переверните телефон в горизонтальный режим</Text>
+          <Text opacity={0.9}>To play, turn your phone to landscape mode.</Text>
         </Card.Body>
       </Card.Root>
     </Box>

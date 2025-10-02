@@ -178,10 +178,10 @@ export const PacmanGame = () => {
               onClick={setDialogStartGameHandler}
               cursor="pointer"
               fontSize="2rem"
-              p="2rem"
+              p="2rem 3rem"
               _hover={{ bg: 'gray.800' }}
             >
-              Начать игру
+              Play
             </Button>
           </div>
         )}
