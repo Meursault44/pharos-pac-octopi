@@ -70,8 +70,12 @@ export const DialogLoseGame = () => {
                     'It seems you lost, but everything is fine, because there are 6 sharks and you are 1'
                   }
                 />
-                <VStack w={'100%'} alignItems={'flex-end'}>
-                  <Button onClick={onStartGameHandler} p={'2rem'} fontSize={'2rem'}>
+                <VStack w={'100%'} alignItems={['center', 'center', 'center', 'flex-end']}>
+                  <Button
+                    onClick={onStartGameHandler}
+                    p={['28px, 28px, 28px, 32px']}
+                    fontSize={'28px, 28px, 28px, 32px'}
+                  >
                     Play again
                   </Button>
                 </VStack>

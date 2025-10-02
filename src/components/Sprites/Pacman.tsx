@@ -437,7 +437,7 @@ export const Pacman = () => {
       x={renderX}
       y={renderY}
       size={SPRITE_SIZE}
-      speed={isRunning ? 2 : 0.6}
+      speed={isRunning ? 2.2 : 0.6}
       rotation={rotation}
     />
   );

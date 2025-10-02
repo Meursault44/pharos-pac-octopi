@@ -1,5 +1,5 @@
 import { CloseButton, Dialog, Portal, VStack, Button } from '@chakra-ui/react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useDialogsStore } from '@/store/dialogs';
 import bg from '@/assets/bgWin.jpg';
 import { OctopiWithText } from '@/components/OctopiWithText.tsx';
@@ -7,25 +7,104 @@ import winOctopi from '@/assets/winOctopi.png';
 import { useGameStore } from '@/game/gameStore.ts';
 import useSound from 'use-sound';
 import vikaSfx from '@/sounds/vika.mp3';
+import confetti from 'canvas-confetti';
 
 export const DialogWinGame = () => {
   const { dialogWinGame, setDialogWinGame } = useDialogsStore();
   const startGame = useGameStore((s) => s.startGame);
-  const [playWin] = useSound(vikaSfx, {
-    volume: 0.1, // подстрой по вкусу
-    interrupt: true, // обрывает предыдущий звук, если новый стартует
+
+  const [playWin, { stop: stopWin }] = useSound(vikaSfx, {
+    volume: 0.2,
+    interrupt: true,
   });
+
+  // refs для очистки
+  const confettiCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const confettiRAFRef = useRef<number | null>(null);
+  const confettiEndTimeRef = useRef<number | null>(null);
+  const confettiInstanceRef = useRef<ReturnType<typeof confetti.create> | null>(null);
 
   const onStartGameHandler = useCallback(() => {
     setDialogWinGame(false);
     startGame();
   }, [startGame, setDialogWinGame]);
 
+  // === ЭФФЕКТ ПОБЕДЫ ===
   useEffect(() => {
     if (dialogWinGame) {
+      // запускаем звук
       playWin();
+
+      // создаём canvas поверх всего
+      const canvas = document.createElement('canvas');
+      canvas.style.position = 'fixed';
+      canvas.style.top = '0';
+      canvas.style.left = '0';
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      canvas.style.pointerEvents = 'none';
+      canvas.style.zIndex = '9999';
+      document.body.appendChild(canvas);
+      confettiCanvasRef.current = canvas;
+
+      const myConfetti = confetti.create(canvas, { resize: true });
+      confettiInstanceRef.current = myConfetti;
+
+      const end = Date.now() + 19 * 1000;
+      confettiEndTimeRef.current = end;
+
+      const colors = ['#bb0000', '#ffffff'];
+
+      const frame = () => {
+        if (!myConfetti) return;
+        myConfetti({
+          particleCount: 3,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors,
+        });
+        myConfetti({
+          particleCount: 3,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors,
+        });
+
+        if (Date.now() < end) {
+          confettiRAFRef.current = requestAnimationFrame(frame);
+        } else {
+          cleanupConfetti();
+        }
+      };
+
+      frame();
+    } else {
+      // если окно закрывается — чистим всё
+      stopWin();
+      cleanupConfetti();
     }
-  }, [playWin, dialogWinGame]);
+
+    // при размонтировании
+    return () => {
+      stopWin();
+      cleanupConfetti();
+    };
+  }, [dialogWinGame, playWin, stopWin]);
+
+  // === очистка ===
+  const cleanupConfetti = () => {
+    if (confettiRAFRef.current) {
+      cancelAnimationFrame(confettiRAFRef.current);
+      confettiRAFRef.current = null;
+    }
+    if (confettiCanvasRef.current && document.body.contains(confettiCanvasRef.current)) {
+      document.body.removeChild(confettiCanvasRef.current);
+      confettiCanvasRef.current = null;
+    }
+    confettiInstanceRef.current = null;
+  };
 
   return (
     <Dialog.Root open={dialogWinGame} onOpenChange={(e) => setDialogWinGame(e?.open)}>
@@ -68,8 +147,12 @@ export const DialogWinGame = () => {
                     'You really managed to collect all the coins while 6 sharks were chasing you. Congratulations!'
                   }
                 />
-                <VStack w={'100%'} alignItems={'flex-end'}>
-                  <Button onClick={onStartGameHandler} p={'2rem'} fontSize={'2rem'}>
+                <VStack w={'100%'} alignItems={['center', 'center', 'center', 'flex-end']}>
+                  <Button
+                    onClick={onStartGameHandler}
+                    p={['28px, 28px, 28px, 32px']}
+                    fontSize={'28px, 28px, 28px, 32px'}
+                  >
                     Play again
                   </Button>
                 </VStack>
