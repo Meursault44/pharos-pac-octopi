@@ -36,7 +36,7 @@ export const DialogLoseGame = () => {
 
         <Dialog.Positioner>
           <Dialog.Content
-            w="50vw"
+            w="45vw"
             maxW="1536px"
             aspectRatio="3 / 2"
             position="relative"

@@ -31,7 +31,7 @@ export const OctopiWithText: FC<OctopiWithTextType> = ({ imgSrc, text }) => {
         py="10px"
         borderRadius="10px"
         boxShadow="md"
-        minW={['46vw', '38vw', '32vw', '26vw']} // чтобы текст не ломался на узких экранах
+        minW={['40vw', '30vw', '28vw', '20vw']} // чтобы текст не ломался на узких экранах
         maxW="48ch"
       >
         <VStack align="start" spacing="6px">
