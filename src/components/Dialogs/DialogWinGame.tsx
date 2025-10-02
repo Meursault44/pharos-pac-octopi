@@ -107,7 +107,7 @@ export const DialogWinGame = () => {
   };
 
   return (
-    <Dialog.Root open={true} onOpenChange={(e) => setDialogWinGame(e?.open)}>
+    <Dialog.Root open={dialogWinGame} onOpenChange={(e) => setDialogWinGame(e?.open)}>
       <Portal>
         <Dialog.Backdrop />
 
